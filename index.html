@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Composição de Preço &amp; Proposta</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+:root{
+  --paper:#F6F5F1;
+  --paper-raised:#FFFFFF;
+  --ink:#1E2A24;
+  --ink-soft:#4B564F;
+  --line:#D9D3C3;
+  --teal:#1F5C4E;
+  --teal-soft:#E5EEEA;
+  --gold:#A9781F;
+  --gold-soft:#F3E9D3;
+  --brick:#8C3A2B;
+  --brick-soft:#F5E5E1;
+  --serif:"Source Serif 4", Georgia, serif;
+  --sans:"Inter", -apple-system, sans-serif;
+  --mono:"IBM Plex Mono", monospace;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.5;
+}
+.app{
+  max-width:760px;
+  margin:0 auto;
+  padding:48px 24px 96px;
+}
+.app > header{
+  margin-bottom:40px;
+  border-bottom:1px solid var(--line);
+  padding-bottom:24px;
+}
+.app > header h1{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:32px;
+  margin:0 0 8px;
+  letter-spacing:-0.01em;
+}
+.app > header p{
+  margin:0;
+  color:var(--ink-soft);
+  max-width:52ch;
+}
+section{margin-bottom:40px;}
+section > h2{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:20px;
+  margin:0 0 4px;
+  display:flex;
+  align-items:baseline;
+  gap:10px;
+}
+section > h2 .num{
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--teal);
+  border:1px solid var(--teal);
+  border-radius:50%;
+  width:20px;height:20px;
+  display:inline-flex;align-items:center;justify-content:center;
+  flex:none;
+}
+section > .hint{
+  color:var(--ink-soft);
+  font-size:13px;
+  margin:0 0 18px;
+}
+
+/* upload */
+.dropzone{
+  border:1px dashed var(--line);
+  border-radius:4px;
+  background:var(--paper-raised);
+  padding:20px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.dropzone input[type=file]{font-family:var(--sans); font-size:13px;}
+#upload-status{
+  margin-top:10px;
+  font-family:var(--mono);
+  font-size:12.5px;
+  color:var(--ink-soft);
+  white-space:pre-wrap;
+}
+#upload-status.ok{color:var(--teal);}
+#upload-status.err{color:var(--brick);}
+
+/* generic field grid */
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px 16px;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:18px;
+}
+.grid label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:12.5px;
+  color:var(--ink-soft);
+}
+.grid label.wide{grid-column:1 / -1;}
+input, textarea{
+  font-family:var(--sans);
+  font-size:14px;
+  color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:3px;
+  padding:8px 10px;
+  background:#fff;
+}
+input:focus, textarea:focus{outline:2px solid var(--teal); outline-offset:1px;}
+textarea{resize:vertical; min-height:60px;}
+
+/* ledger */
+.ledger{
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:4px;
+  overflow:hidden;
+}
+.ledger-row{
+  display:grid;
+  grid-template-columns:1fr 160px;
+  align-items:center;
+  gap:10px;
+  padding:10px 18px;
+  border-bottom:1px solid var(--line);
+}
+.ledger-row label{font-size:13.5px;}
+.ledger-row input{
+  font-family:var(--mono);
+  text-align:right;
+  font-size:13.5px;
+}
+.ledger-group-title{
+  padding:14px 18px 4px;
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:13.5px;
+  color:var(--teal);
+  background:var(--teal-soft);
+  border-bottom:1px solid var(--line);
+}
+.ledger-row.result{
+  background:#FBFAF7;
+}
+.ledger-row.result label{font-weight:500;}
+.ledger-row.result .value{
+  font-family:var(--mono);
+  text-align:right;
+  font-size:14px;
+}
+.ledger-row.result.main{
+  background:var(--gold-soft);
+}
+.ledger-row.result.main label{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:15px;
+  color:var(--ink);
+}
+.ledger-row.result.main .value{
+  font-size:18px;
+  font-weight:600;
+  color:var(--gold);
+}
+.ledger-row:last-child{border-bottom:none;}
+#pricing-warning{
+  display:none;
+  margin-top:10px;
+  padding:10px 14px;
+  background:var(--brick-soft);
+  color:var(--brick);
+  border-radius:3px;
+  font-size:13px;
+}
+
+button{
+  font-family:var(--sans);
+  font-weight:600;
+  font-size:14px;
+  background:var(--teal);
+  color:#fff;
+  border:none;
+  border-radius:3px;
+  padding:12px 20px;
+  cursor:pointer;
+}
+button:hover{background:#184a3f;}
+button.secondary{
+  background:transparent;
+  color:var(--teal);
+  border:1px solid var(--teal);
+}
+button.secondary:hover{background:var(--teal-soft);}
+
+.hidden{display:none !important;}
+
+/* printable proposal */
+#proposal-template{
+  position:fixed;
+  left:-9999px;
+  top:0;
+  width:794px;
+  background:#fff;
+  color:#1E2A24;
+  font-family:var(--sans);
+  padding:56px;
+}
+#proposal-template .p-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  border-bottom:2px solid var(--teal);
+  padding-bottom:18px;
+  margin-bottom:28px;
+}
+#proposal-template .p-header h1{
+  font-family:var(--serif);
+  font-size:26px;
+  margin:0;
+}
+#proposal-template .p-header .p-date{
+  font-family:var(--mono);
+  font-size:12px;
+  color:var(--ink-soft);
+}
+#proposal-template .p-meta{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px 24px;
+  font-size:13px;
+  margin-bottom:28px;
+}
+#proposal-template .p-meta div span{
+  display:block;
+  color:var(--ink-soft);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+#proposal-template table{
+  width:100%;
+  border-collapse:collapse;
+  margin-bottom:24px;
+}
+#proposal-template table th{
+  text-align:left;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:var(--ink-soft);
+  border-bottom:1px solid var(--line);
+  padding:8px 6px;
+}
+#proposal-template table td{
+  padding:10px 6px;
+  border-bottom:1px solid var(--line);
+  font-size:14px;
+}
+#proposal-template table td.num{
+  font-family:var(--mono);
+  text-align:right;
+}
+#proposal-template .p-total-row td{
+  font-weight:700;
+  font-size:17px;
+  border-bottom:none;
+  border-top:2px solid var(--teal);
+  color:var(--teal);
+}
+#proposal-template .p-obs{
+  font-size:12px;
+  color:var(--ink-soft);
+  margin-top:32px;
+  border-top:1px solid var(--line);
+  padding-top:14px;
+}
+
+@media (max-width: 560px){
+  .grid{grid-template-columns:1fr;}
+  .ledger-row{grid-template-columns:1fr 120px;}
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <h1>Composição de Preço</h1>
+    <p>Extraia dados de um PDF de fornecedor, confira e ajuste os valores, monte a composição de preço e gere a proposta comercial em PDF.</p>
+  </header>
+
+  <section id="upload-step">
+    <h2><span class="num">1</span> Documento de origem</h2>
+    <p class="hint">Envie o PDF do fornecedor. Os campos abaixo serão preenchidos automaticamente quando possível — sempre confira antes de prosseguir.</p>
+    <div class="dropzone">
+      <input type="file" id="pdf-input" accept="application/pdf">
+    </div>
+    <div id="upload-status"></div>
+  </section>
+
+  <section id="data-step">
+    <h2><span class="num">2</span> Dados do documento</h2>
+    <p class="hint">Preenchidos pela extração do PDF quando encontrados. Edite livremente.</p>
+    <div class="grid">
+      <label>Fornecedor
+        <input id="f-fornecedor" placeholder="Razão social">
+      </label>
+      <label>Produto / Descrição
+        <input id="f-produto" placeholder="Descrição do item">
+      </label>
+      <label>Proposta para (cliente)
+        <input id="f-cliente" placeholder="Nome do cliente">
+      </label>
+      <label>Data da proposta
+        <input id="f-data" type="date">
+      </label>
+      <label class="wide">Observações
+        <textarea id="f-obs" placeholder="Condições de pagamento, prazo de entrega, validade da proposta..."></textarea>
+      </label>
+    </div>
+  </section>
+
+  <section id="pricing-step">
+    <h2><span class="num">3</span> Composição de preço</h2>
+    <p class="hint">Todos os campos recalculam automaticamente. Percentuais de impostos de saída são aplicados "por dentro" do preço de venda.</p>
+
+    <div class="ledger">
+      <div class="ledger-row">
+        <label>Preço de compra (R$)</label>
+        <input id="preco-compra" type="number" step="0.01" value="0">
+      </div>
+
+      <div class="ledger-group-title">Impostos e créditos de entrada — para chegar ao CMV</div>
+      <div class="ledger-row">
+        <label>ICMS crédito (%)</label>
+        <input id="icms-in" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row">
+        <label>PIS crédito (%)</label>
+        <input id="pis-in" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row">
+        <label>COFINS crédito (%)</label>
+        <input id="cofins-in" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row">
+        <label>IPI não recuperável (%)</label>
+        <input id="ipi-in" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row">
+        <label>Outras despesas de compra (R$)</label>
+        <input id="despesas-in" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row result main">
+        <label>CMV</label>
+        <div class="value" id="out-cmv">R$ 0,00</div>
+      </div>
+
+      <div class="ledger-group-title">Impostos de saída e margem desejada</div>
+      <div class="ledger-row">
+        <label>ICMS saída (%)</label>
+        <input id="icms-out" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row">
+        <label>PIS saída (%)</label>
+        <input id="pis-out" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row">
+        <label>COFINS saída (%)</label>
+        <input id="cofins-out" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row">
+        <label>ISS saída (%) — se serviço</label>
+        <input id="iss-out" type="number" step="0.01" value="0">
+      </div>
+      <div class="ledger-row">
+        <label>Margem de saída desejada (%)</label>
+        <input id="margem-out" type="number" step="0.01" value="0">
+      </div>
+
+      <div class="ledger-row result main">
+        <label>Preço de saída</label>
+        <div class="value" id="out-preco-saida">R$ 0,00</div>
+      </div>
+      <div class="ledger-row result">
+        <label>Impostos de saída (R$)</label>
+        <div class="value" id="out-impostos-saida">R$ 0,00</div>
+      </div>
+      <div class="ledger-row result">
+        <label>Margem de saída (R$)</label>
+        <div class="value" id="out-margem-saida">R$ 0,00</div>
+      </div>
+    </div>
+    <div id="pricing-warning"></div>
+  </section>
+
+  <section id="proposal-step">
+    <h2><span class="num">4</span> Proposta</h2>
+    <p class="hint">Gera um PDF pronto para enviar ao cliente com os dados acima.</p>
+    <button id="gerar-proposta">Gerar proposta em PDF</button>
+  </section>
+</div>
+
+<!-- printable template, kept off-screen and rendered to PDF -->
+<div id="proposal-template">
+  <div class="p-header">
+    <h1 id="p-titulo">Proposta Comercial</h1>
+    <div class="p-date" id="p-data-emissao"></div>
+  </div>
+  <div class="p-meta">
+    <div><span>Para</span><strong id="p-cliente">—</strong></div>
+    <div><span>Fornecedor de referência</span><strong id="p-fornecedor">—</strong></div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>Item</th><th style="text-align:right">Valor</th></tr>
+    </thead>
+    <tbody>
+      <tr><td id="p-produto">Produto</td><td class="num" id="p-linha-produto">—</td></tr>
+      <tr><td>Custo (CMV)</td><td class="num" id="p-cmv">—</td></tr>
+      <tr><td>Impostos incidentes</td><td class="num" id="p-impostos">—</td></tr>
+      <tr><td>Margem</td><td class="num" id="p-margem">—</td></tr>
+      <tr class="p-total-row"><td>Preço final</td><td class="num" id="p-total">—</td></tr>
+    </tbody>
+  </table>
+  <div class="p-obs" id="p-obs"></div>
+</div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* ---------------------------------------------------------------------
+   EXTRAÇÃO DO PDF
+   O layout do fornecedor é fixo, mas os padrões abaixo são genéricos
+   (busca por palavras-chave comuns + valores em R$). Ajuste os regex em
+   PATTERNS conforme o modelo real do seu fornecedor para aumentar a
+   precisão — a extração é sempre um ponto de partida editável, nunca
+   a fonte final dos dados.
+--------------------------------------------------------------------- */
+const PATTERNS = {
+  fornecedor: /(?:raz[aã]o social|fornecedor)\s*[:\-]?\s*(.+)/i,
+  produto: /(?:descri[cç][aã]o|produto|item)\s*[:\-]?\s*(.+)/i,
+  precoCompra: /(?:valor unit[aá]rio|pre[cç]o unit[aá]rio|valor total|pre[cç]o)\s*[:\-]?\s*R?\$?\s*([\d.,]+)/i
+};
+
+function parseCurrencyToNumber(str){
+  if(!str) return null;
+  const cleaned = str.replace(/[^\d,.-]/g,'').replace(/\.(?=\d{3},)/g,'').replace(',', '.');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+document.getElementById('pdf-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  const statusEl = document.getElementById('upload-status');
+  if(!file) return;
+  statusEl.className = '';
+  statusEl.textContent = 'Lendo PDF...';
+
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    let fullText = '';
+    for(let i=1; i<=pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map(it => it.str).join(' ') + '\n';
+    }
+
+    const fMatch = fullText.match(PATTERNS.fornecedor);
+    const pMatch = fullText.match(PATTERNS.produto);
+    const cMatch = fullText.match(PATTERNS.precoCompra);
+
+    if(fMatch) document.getElementById('f-fornecedor').value = fMatch[1].trim().slice(0,80);
+    if(pMatch) document.getElementById('f-produto').value = pMatch[1].trim().slice(0,80);
+    if(cMatch){
+      const val = parseCurrencyToNumber(cMatch[1]);
+      if(val !== null){
+        document.getElementById('preco-compra').value = val.toFixed(2);
+        recalc();
+      }
+    }
+
+    const found = [fMatch && 'fornecedor', pMatch && 'produto', cMatch && 'preço'].filter(Boolean);
+    if(found.length){
+      statusEl.className = 'ok';
+      statusEl.textContent = `Extraído automaticamente: ${found.join(', ')}. Confira os campos abaixo antes de prosseguir.`;
+    } else {
+      statusEl.className = 'err';
+      statusEl.textContent = 'Não foi possível reconhecer os campos automaticamente neste layout. Preencha manualmente — ajuste os padrões em PATTERNS no código para este modelo de PDF.';
+    }
+  } catch(err){
+    statusEl.className = 'err';
+    statusEl.textContent = 'Erro ao ler o PDF: ' + err.message;
+  }
+});
+
+/* ---------------------------------------------------------------------
+   CÁLCULO — método do markup divisor (comum na precificação brasileira)
+   CMV = preço de compra − créditos de entrada + IPI não recuperável + despesas
+   Preço de saída = CMV / (1 − %impostos de saída − %margem)
+--------------------------------------------------------------------- */
+const ids = ['preco-compra','icms-in','pis-in','cofins-in','ipi-in','despesas-in',
+             'icms-out','pis-out','cofins-out','iss-out','margem-out'];
+ids.forEach(id => document.getElementById(id).addEventListener('input', recalc));
+
+function num(id){ return parseFloat(document.getElementById(id).value) || 0; }
+function fmtBRL(n){ return n.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
+
+function recalc(){
+  const compra = num('preco-compra');
+  const creditos = compra * (num('icms-in') + num('pis-in') + num('cofins-in')) / 100;
+  const ipiCusto = compra * num('ipi-in') / 100;
+  const despesas = num('despesas-in');
+  const cmv = compra - creditos + ipiCusto + despesas;
+
+  const pctSaidaImpostos = num('icms-out') + num('pis-out') + num('cofins-out') + num('iss-out');
+  const pctMargem = num('margem-out');
+  const pctTotal = (pctSaidaImpostos + pctMargem) / 100;
+
+  const warnEl = document.getElementById('pricing-warning');
+  let precoSaida = 0, impostosValor = 0, margemValor = 0;
+
+  if(pctTotal >= 1){
+    warnEl.style.display = 'block';
+    warnEl.textContent = 'A soma de impostos de saída + margem é igual ou maior que 100%. Ajuste os percentuais — o preço de saída não pode ser calculado assim.';
+  } else {
+    warnEl.style.display = 'none';
+    precoSaida = cmv / (1 - pctTotal);
+    impostosValor = precoSaida * pctSaidaImpostos / 100;
+    margemValor = precoSaida * pctMargem / 100;
+  }
+
+  document.getElementById('out-cmv').textContent = fmtBRL(cmv);
+  document.getElementById('out-preco-saida').textContent = fmtBRL(precoSaida);
+  document.getElementById('out-impostos-saida').textContent = fmtBRL(impostosValor);
+  document.getElementById('out-margem-saida').textContent = fmtBRL(margemValor);
+}
+recalc();
+
+/* ---------------------------------------------------------------------
+   GERAÇÃO DA PROPOSTA EM PDF
+--------------------------------------------------------------------- */
+document.getElementById('gerar-proposta').addEventListener('click', () => {
+  const cmvText = document.getElementById('out-cmv').textContent;
+  const precoText = document.getElementById('out-preco-saida').textContent;
+  const impostosText = document.getElementById('out-impostos-saida').textContent;
+  const margemText = document.getElementById('out-margem-saida').textContent;
+  const produto = document.getElementById('f-produto').value || 'Item proposto';
+  const fornecedor = document.getElementById('f-fornecedor').value || '—';
+  const cliente = document.getElementById('f-cliente').value || '—';
+  const obs = document.getElementById('f-obs').value || '';
+  const dataInput = document.getElementById('f-data').value;
+  const dataFmt = dataInput ? new Date(dataInput + 'T00:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+
+  document.getElementById('p-data-emissao').textContent = dataFmt;
+  document.getElementById('p-cliente').textContent = cliente;
+  document.getElementById('p-fornecedor').textContent = fornecedor;
+  document.getElementById('p-produto').textContent = produto;
+  document.getElementById('p-linha-produto').textContent = precoText;
+  document.getElementById('p-cmv').textContent = cmvText;
+  document.getElementById('p-impostos').textContent = impostosText;
+  document.getElementById('p-margem').textContent = margemText;
+  document.getElementById('p-total').textContent = precoText;
+  document.getElementById('p-obs').textContent = obs;
+
+  const el = document.getElementById('proposal-template');
+  el.style.left = '0px';
+  html2pdf().set({
+    margin: 0,
+    filename: `proposta-${(cliente||'cliente').toLowerCase().replace(/\s+/g,'-')}.pdf`,
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'px', format: [794, 1123], orientation: 'portrait' }
+  }).from(el).save().then(() => {
+    el.style.left = '-9999px';
+  });
+});
+</script>
+
+</body>
+</html>
