@@ -29,6 +29,19 @@
   --sans:"Inter", -apple-system, sans-serif;
   --mono:"IBM Plex Mono", monospace;
 }
+:root[data-theme="dark"]{
+  --paper:#181C1A;
+  --paper-raised:#20241F;
+  --ink:#EDEBE3;
+  --ink-soft:#A3AAA0;
+  --line:#333B33;
+  --teal:#4FAF97;
+  --teal-soft:#1E2C27;
+  --gold:#D7A93E;
+  --gold-soft:#2B2517;
+  --brick:#E08669;
+  --brick-soft:#2E211D;
+}
 *{box-sizing:border-box;}
 body{
   margin:0;
@@ -37,6 +50,7 @@ body{
   font-family:var(--sans);
   font-size:15px;
   line-height:1.5;
+  transition:background .2s ease, color .2s ease;
 }
 .app{
   max-width:760px;
@@ -47,7 +61,12 @@ body{
   margin-bottom:40px;
   border-bottom:1px solid var(--line);
   padding-bottom:24px;
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
 }
+.app > header .header-text{flex:1;}
 .app > header h1{
   font-family:var(--serif);
   font-weight:600;
@@ -59,6 +78,29 @@ body{
   margin:0;
   color:var(--ink-soft);
   max-width:52ch;
+}
+#theme-toggle{
+  flex:none;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  color:var(--ink);
+  border-radius:20px;
+  padding:6px 14px 6px 6px;
+  font-size:12.5px;
+  font-family:var(--mono);
+  cursor:pointer;
+}
+#theme-toggle:hover{border-color:var(--teal);}
+#theme-toggle .icon{
+  width:22px;height:22px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--teal-soft);
+  color:var(--teal);
+  font-size:13px;
 }
 section{margin-bottom:40px;}
 section > h2{
@@ -313,8 +355,14 @@ button.secondary:hover{background:var(--teal-soft);}
 
 <div class="app">
   <header>
-    <h1>Composição de Preço</h1>
-    <p>Extraia dados de um PDF de fornecedor, confira e ajuste os valores, monte a composição de preço e gere a proposta comercial em PDF.</p>
+    <div class="header-text">
+      <h1>Composição de Preço</h1>
+      <p>Extraia dados de um PDF de fornecedor, confira e ajuste os valores, monte a composição de preço e gere a proposta comercial em PDF.</p>
+    </div>
+    <button id="theme-toggle" type="button" aria-label="Alternar modo claro/escuro">
+      <span class="icon" id="theme-icon">☾</span>
+      <span id="theme-label">Modo escuro</span>
+    </button>
   </header>
 
   <section id="upload-step">
@@ -358,26 +406,22 @@ button.secondary:hover{background:var(--teal-soft);}
         <input id="preco-compra" type="number" step="0.01" value="0">
       </div>
 
-      <div class="ledger-group-title">Impostos e créditos de entrada — para chegar ao CMV</div>
+      <div class="ledger-group-title">Impostos de entrada — para chegar ao CMV</div>
       <div class="ledger-row">
-        <label>ICMS crédito (%)</label>
+        <label>ICMS (%)</label>
         <input id="icms-in" type="number" step="0.01" value="0">
       </div>
       <div class="ledger-row">
-        <label>PIS crédito (%)</label>
+        <label>PIS (%)</label>
         <input id="pis-in" type="number" step="0.01" value="0">
       </div>
       <div class="ledger-row">
-        <label>COFINS crédito (%)</label>
+        <label>COFINS (%)</label>
         <input id="cofins-in" type="number" step="0.01" value="0">
       </div>
       <div class="ledger-row">
         <label>IPI não recuperável (%)</label>
         <input id="ipi-in" type="number" step="0.01" value="0">
-      </div>
-      <div class="ledger-row">
-        <label>Outras despesas de compra (R$)</label>
-        <input id="despesas-in" type="number" step="0.01" value="0">
       </div>
       <div class="ledger-row result main">
         <label>CMV</label>
@@ -458,6 +502,37 @@ button.secondary:hover{background:var(--teal-soft);}
 pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 /* ---------------------------------------------------------------------
+   MODO CLARO / ESCURO
+--------------------------------------------------------------------- */
+(function initTheme(){
+  const root = document.documentElement;
+  const btn = document.getElementById('theme-toggle');
+  const icon = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+
+  function apply(theme){
+    root.setAttribute('data-theme', theme);
+    if(theme === 'dark'){
+      icon.textContent = '☀';
+      label.textContent = 'Modo claro';
+    } else {
+      icon.textContent = '☾';
+      label.textContent = 'Modo escuro';
+    }
+    try{ localStorage.setItem('composicao-preco-theme', theme); }catch(e){}
+  }
+
+  let saved = 'light';
+  try{ saved = localStorage.getItem('composicao-preco-theme') || 'light'; }catch(e){}
+  apply(saved);
+
+  btn.addEventListener('click', () => {
+    const current = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    apply(current);
+  });
+})();
+
+/* ---------------------------------------------------------------------
    EXTRAÇÃO DO PDF
    O layout do fornecedor é fixo, mas os padrões abaixo são genéricos
    (busca por palavras-chave comuns + valores em R$). Ajuste os regex em
@@ -528,7 +603,7 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
    CMV = preço de compra − créditos de entrada + IPI não recuperável + despesas
    Preço de saída = CMV / (1 − %impostos de saída − %margem)
 --------------------------------------------------------------------- */
-const ids = ['preco-compra','icms-in','pis-in','cofins-in','ipi-in','despesas-in',
+const ids = ['preco-compra','icms-in','pis-in','cofins-in','ipi-in',
              'icms-out','pis-out','cofins-out','iss-out','margem-out'];
 ids.forEach(id => document.getElementById(id).addEventListener('input', recalc));
 
@@ -539,8 +614,7 @@ function recalc(){
   const compra = num('preco-compra');
   const creditos = compra * (num('icms-in') + num('pis-in') + num('cofins-in')) / 100;
   const ipiCusto = compra * num('ipi-in') / 100;
-  const despesas = num('despesas-in');
-  const cmv = compra - creditos + ipiCusto + despesas;
+  const cmv = compra - creditos + ipiCusto;
 
   const pctSaidaImpostos = num('icms-out') + num('pis-out') + num('cofins-out') + num('iss-out');
   const pctMargem = num('margem-out');
