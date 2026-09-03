@@ -47,6 +47,16 @@ html[data-theme="dark"]{color-scheme:dark;}
   --brick:#E79A82;
   --brick-soft:#2E211D;
 }
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] textarea{
+  background-color:#242A22 !important;
+  color:#F3F1E9 !important;
+  border-color:#3A423A !important;
+}
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder{
+  color:#8C948A !important;
+}
 *{box-sizing:border-box;}
 body{
   margin:0;
@@ -598,7 +608,9 @@ table.items-table tfoot td{
 </div>
 
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+if(typeof pdfjsLib !== 'undefined'){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
 
 /* ---------------------------------------------------------------------
    MODO CLARO / ESCURO
@@ -795,6 +807,12 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
   statusEl.className = '';
   statusEl.textContent = 'Lendo PDF...';
 
+  if(typeof pdfjsLib === 'undefined'){
+    statusEl.className = 'err';
+    statusEl.textContent = 'A biblioteca de leitura de PDF não carregou (verifique sua conexão ou se algo está bloqueando cdnjs.cloudflare.com). Preencha os campos manualmente.';
+    return;
+  }
+
   try{
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
@@ -839,6 +857,10 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
    GERAÇÃO DA PROPOSTA EM PDF
 --------------------------------------------------------------------- */
 document.getElementById('gerar-proposta').addEventListener('click', () => {
+  if(typeof html2pdf === 'undefined'){
+    alert('A biblioteca de geração de PDF não carregou (verifique sua conexão ou se algo está bloqueando cdnjs.cloudflare.com) e não é possível gerar o arquivo agora.');
+    return;
+  }
   const fornecedor = document.getElementById('f-fornecedor').value || '—';
   const cliente = document.getElementById('f-cliente').value || '—';
   const obsBase = document.getElementById('f-obs').value || '';
