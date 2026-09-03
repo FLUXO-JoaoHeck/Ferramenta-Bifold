@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
 <title>Composição de Preço &amp; Proposta</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -13,9 +14,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
+html{color-scheme:light;}
+html[data-theme="dark"]{color-scheme:dark;}
 :root{
   --paper:#F6F5F1;
   --paper-raised:#FFFFFF;
+  --row-alt:#FBFAF7;
   --ink:#1E2A24;
   --ink-soft:#4B564F;
   --line:#D9D3C3;
@@ -32,14 +36,15 @@
 :root[data-theme="dark"]{
   --paper:#181C1A;
   --paper-raised:#20241F;
-  --ink:#EDEBE3;
-  --ink-soft:#A3AAA0;
-  --line:#333B33;
-  --teal:#4FAF97;
+  --row-alt:#242A22;
+  --ink:#F3F1E9;
+  --ink-soft:#B7BDB2;
+  --line:#3A423A;
+  --teal:#63C1A7;
   --teal-soft:#1E2C27;
-  --gold:#D7A93E;
+  --gold:#E3B75B;
   --gold-soft:#2B2517;
-  --brick:#E08669;
+  --brick:#E79A82;
   --brick-soft:#2E211D;
 }
 *{box-sizing:border-box;}
@@ -53,7 +58,7 @@ body{
   transition:background .2s ease, color .2s ease;
 }
 .app{
-  max-width:760px;
+  max-width:900px;
   margin:0 auto;
   padding:48px 24px 96px;
 }
@@ -66,13 +71,14 @@ body{
   align-items:flex-start;
   gap:16px;
 }
-.app > header .header-text{flex:1;}
+.app > header .header-text{flex:1; max-width:600px;}
 .app > header h1{
   font-family:var(--serif);
   font-weight:600;
   font-size:32px;
   margin:0 0 8px;
   letter-spacing:-0.01em;
+  color:var(--ink);
 }
 .app > header p{
   margin:0;
@@ -102,7 +108,8 @@ body{
   color:var(--teal);
   font-size:13px;
 }
-section{margin-bottom:40px;}
+section{max-width:760px; margin-bottom:40px;}
+section.wide{max-width:none;}
 section > h2{
   font-family:var(--serif);
   font-weight:600;
@@ -111,6 +118,7 @@ section > h2{
   display:flex;
   align-items:baseline;
   gap:10px;
+  color:var(--ink);
 }
 section > h2 .num{
   font-family:var(--mono);
@@ -138,7 +146,7 @@ section > .hint{
   align-items:center;
   gap:14px;
 }
-.dropzone input[type=file]{font-family:var(--sans); font-size:13px;}
+.dropzone input[type=file]{font-family:var(--sans); font-size:13px; color:var(--ink);}
 #upload-status{
   margin-top:10px;
   font-family:var(--mono);
@@ -174,12 +182,13 @@ input, textarea{
   border:1px solid var(--line);
   border-radius:3px;
   padding:8px 10px;
-  background:#fff;
+  background:var(--paper-raised);
 }
+input::placeholder, textarea::placeholder{color:var(--ink-soft); opacity:.8;}
 input:focus, textarea:focus{outline:2px solid var(--teal); outline-offset:1px;}
 textarea{resize:vertical; min-height:60px;}
 
-/* ledger */
+/* ledger (regras de composição) */
 .ledger{
   background:var(--paper-raised);
   border:1px solid var(--line);
@@ -194,7 +203,7 @@ textarea{resize:vertical; min-height:60px;}
   padding:10px 18px;
   border-bottom:1px solid var(--line);
 }
-.ledger-row label{font-size:13.5px;}
+.ledger-row label{font-size:13.5px; color:var(--ink);}
 .ledger-row input{
   font-family:var(--mono);
   text-align:right;
@@ -209,29 +218,6 @@ textarea{resize:vertical; min-height:60px;}
   background:var(--teal-soft);
   border-bottom:1px solid var(--line);
 }
-.ledger-row.result{
-  background:#FBFAF7;
-}
-.ledger-row.result label{font-weight:500;}
-.ledger-row.result .value{
-  font-family:var(--mono);
-  text-align:right;
-  font-size:14px;
-}
-.ledger-row.result.main{
-  background:var(--gold-soft);
-}
-.ledger-row.result.main label{
-  font-family:var(--serif);
-  font-weight:600;
-  font-size:15px;
-  color:var(--ink);
-}
-.ledger-row.result.main .value{
-  font-size:18px;
-  font-weight:600;
-  color:var(--gold);
-}
 .ledger-row:last-child{border-bottom:none;}
 #pricing-warning{
   display:none;
@@ -242,6 +228,24 @@ textarea{resize:vertical; min-height:60px;}
   border-radius:3px;
   font-size:13px;
 }
+
+/* frete */
+#frete-box{
+  margin-top:12px;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:14px 18px;
+  max-width:280px;
+}
+#frete-box label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:12.5px;
+  color:var(--ink-soft);
+}
+#frete-box input{font-family:var(--mono);}
 
 button{
   font-family:var(--sans);
@@ -254,23 +258,93 @@ button{
   padding:12px 20px;
   cursor:pointer;
 }
-button:hover{background:#184a3f;}
+button:hover{filter:brightness(0.92);}
 button.secondary{
   background:transparent;
   color:var(--teal);
   border:1px solid var(--teal);
 }
 button.secondary:hover{background:var(--teal-soft);}
+button.secondary.active{background:var(--teal); color:#fff;}
 
 .hidden{display:none !important;}
 
-/* printable proposal */
+/* items table */
+.items-wrap{
+  overflow-x:auto;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:4px;
+}
+table.items-table{width:100%; border-collapse:collapse; min-width:820px;}
+table.items-table thead th{
+  text-align:left;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:var(--ink-soft);
+  padding:10px 10px;
+  border-bottom:1px solid var(--line);
+  background:var(--teal-soft);
+  white-space:nowrap;
+}
+table.items-table tbody td{
+  padding:8px 10px;
+  border-bottom:1px solid var(--line);
+  font-family:var(--mono);
+  font-size:13px;
+  color:var(--ink);
+}
+table.items-table tbody tr:nth-child(even){background:var(--row-alt);}
+table.items-table td.calc{text-align:right; white-space:nowrap;}
+table.items-table td.calc.strong{font-weight:600; color:var(--teal);}
+table.items-table input{
+  width:100%;
+  min-width:76px;
+  font-family:var(--mono);
+  font-size:13px;
+  padding:6px 8px;
+  background:var(--paper);
+  color:var(--ink);
+  border:1px solid var(--line);
+  border-radius:3px;
+}
+table.items-table input.cell-pn{font-family:var(--sans); min-width:100px;}
+table.items-table tfoot td{
+  font-weight:700;
+  border-top:2px solid var(--teal);
+  border-bottom:none;
+  color:var(--teal);
+  font-size:14px;
+  padding:12px 10px;
+}
+.row-remove{
+  background:transparent;
+  border:1px solid var(--line);
+  color:var(--brick);
+  border-radius:3px;
+  width:26px;height:26px;
+  padding:0;
+  font-size:13px;
+  line-height:1;
+  cursor:pointer;
+}
+.row-remove:hover{background:var(--brick-soft); border-color:var(--brick);}
+.items-actions{
+  display:flex;
+  gap:10px;
+  margin-top:14px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+/* printable proposal — sempre em papel claro, independente do tema do site */
 #proposal-template{
-  position:fixed;
+  position:absolute;
   left:-9999px;
   top:0;
   width:794px;
-  background:#fff;
+  background:#FFFFFF;
   color:#1E2A24;
   font-family:var(--sans);
   padding:56px;
@@ -279,7 +353,7 @@ button.secondary:hover{background:var(--teal-soft);}
   display:flex;
   justify-content:space-between;
   align-items:flex-end;
-  border-bottom:2px solid var(--teal);
+  border-bottom:2px solid #1F5C4E;
   padding-bottom:18px;
   margin-bottom:28px;
 }
@@ -287,11 +361,12 @@ button.secondary:hover{background:var(--teal-soft);}
   font-family:var(--serif);
   font-size:26px;
   margin:0;
+  color:#1E2A24;
 }
 #proposal-template .p-header .p-date{
   font-family:var(--mono);
   font-size:12px;
-  color:var(--ink-soft);
+  color:#4B564F;
 }
 #proposal-template .p-meta{
   display:grid;
@@ -302,7 +377,7 @@ button.secondary:hover{background:var(--teal-soft);}
 }
 #proposal-template .p-meta div span{
   display:block;
-  color:var(--ink-soft);
+  color:#4B564F;
   font-size:11px;
   text-transform:uppercase;
   letter-spacing:.04em;
@@ -317,32 +392,34 @@ button.secondary:hover{background:var(--teal-soft);}
   font-size:11px;
   text-transform:uppercase;
   letter-spacing:.04em;
-  color:var(--ink-soft);
-  border-bottom:1px solid var(--line);
+  color:#4B564F;
+  border-bottom:1px solid #D9D3C3;
   padding:8px 6px;
 }
 #proposal-template table td{
   padding:10px 6px;
-  border-bottom:1px solid var(--line);
-  font-size:14px;
+  border-bottom:1px solid #D9D3C3;
+  font-size:13.5px;
+  color:#1E2A24;
 }
 #proposal-template table td.num{
   font-family:var(--mono);
   text-align:right;
 }
-#proposal-template .p-total-row td{
+#proposal-template tfoot .p-total-row td{
   font-weight:700;
   font-size:17px;
   border-bottom:none;
-  border-top:2px solid var(--teal);
-  color:var(--teal);
+  border-top:2px solid #1F5C4E;
+  color:#1F5C4E;
 }
 #proposal-template .p-obs{
   font-size:12px;
-  color:var(--ink-soft);
+  color:#4B564F;
   margin-top:32px;
-  border-top:1px solid var(--line);
+  border-top:1px solid #D9D3C3;
   padding-top:14px;
+  white-space:pre-wrap;
 }
 
 @media (max-width: 560px){
@@ -357,7 +434,7 @@ button.secondary:hover{background:var(--teal-soft);}
   <header>
     <div class="header-text">
       <h1>Composição de Preço</h1>
-      <p>Extraia dados de um PDF de fornecedor, confira e ajuste os valores, monte a composição de preço e gere a proposta comercial em PDF.</p>
+      <p>Extraia dados de um PDF de fornecedor, confira e ajuste os valores, monte a composição de preço item a item e gere a proposta comercial em PDF.</p>
     </div>
     <button id="theme-toggle" type="button" aria-label="Alternar modo claro/escuro">
       <span class="icon" id="theme-icon">☾</span>
@@ -381,8 +458,8 @@ button.secondary:hover{background:var(--teal-soft);}
       <label>Fornecedor
         <input id="f-fornecedor" placeholder="Razão social">
       </label>
-      <label>Produto / Descrição
-        <input id="f-produto" placeholder="Descrição do item">
+      <label>Produto / Descrição geral
+        <input id="f-produto" placeholder="Descrição da proposta">
       </label>
       <label>Proposta para (cliente)
         <input id="f-cliente" placeholder="Nome do cliente">
@@ -397,15 +474,10 @@ button.secondary:hover{background:var(--teal-soft);}
   </section>
 
   <section id="pricing-step">
-    <h2><span class="num">3</span> Composição de preço</h2>
-    <p class="hint">Todos os campos recalculam automaticamente. Percentuais de impostos de saída são aplicados "por dentro" do preço de venda.</p>
+    <h2><span class="num">3</span> Regras de composição de preço</h2>
+    <p class="hint">Percentuais aplicados a todos os itens da tabela abaixo. Impostos de saída e margem são aplicados "por dentro" do preço final.</p>
 
     <div class="ledger">
-      <div class="ledger-row">
-        <label>Preço de compra (R$)</label>
-        <input id="preco-compra" type="number" step="0.01" value="0">
-      </div>
-
       <div class="ledger-group-title">Impostos de entrada — para chegar ao CMV</div>
       <div class="ledger-row">
         <label>ICMS (%)</label>
@@ -422,10 +494,6 @@ button.secondary:hover{background:var(--teal-soft);}
       <div class="ledger-row">
         <label>IPI não recuperável (%)</label>
         <input id="ipi-in" type="number" step="0.01" value="0">
-      </div>
-      <div class="ledger-row result main">
-        <label>CMV</label>
-        <div class="value" id="out-cmv">R$ 0,00</div>
       </div>
 
       <div class="ledger-group-title">Impostos de saída e margem desejada</div>
@@ -449,26 +517,55 @@ button.secondary:hover{background:var(--teal-soft);}
         <label>Margem de saída desejada (%)</label>
         <input id="margem-out" type="number" step="0.01" value="0">
       </div>
-
-      <div class="ledger-row result main">
-        <label>Preço de saída</label>
-        <div class="value" id="out-preco-saida">R$ 0,00</div>
-      </div>
-      <div class="ledger-row result">
-        <label>Impostos de saída (R$)</label>
-        <div class="value" id="out-impostos-saida">R$ 0,00</div>
-      </div>
-      <div class="ledger-row result">
-        <label>Margem de saída (R$)</label>
-        <div class="value" id="out-margem-saida">R$ 0,00</div>
-      </div>
     </div>
+
+    <button id="frete-toggle" type="button" class="secondary" style="margin-top:16px;">+ Considerar frete no preço</button>
+    <div id="frete-box" class="hidden">
+      <label>Valor total do frete (R$)
+        <input id="frete-valor" type="number" step="0.01" value="0">
+      </label>
+    </div>
+
     <div id="pricing-warning"></div>
   </section>
 
+  <section id="items-step" class="wide">
+    <h2><span class="num">4</span> Itens da proposta</h2>
+    <p class="hint">Cada linha usa as regras da seção 3 para calcular CMV e preço final. Quando o frete estiver ativo, ele é dividido proporcionalmente pela quantidade total de todos os itens.</p>
+
+    <div class="items-wrap">
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>PN</th>
+            <th>Preço de custo</th>
+            <th>Qtd.</th>
+            <th>Impostos entrada</th>
+            <th>CMV</th>
+            <th>Impostos saída</th>
+            <th>Preço final</th>
+            <th>Total</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="items-tbody"></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="7">Total geral</td>
+            <td id="grand-total" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="items-actions">
+      <button id="add-item" type="button" class="secondary">+ Adicionar item</button>
+    </div>
+  </section>
+
   <section id="proposal-step">
-    <h2><span class="num">4</span> Proposta</h2>
-    <p class="hint">Gera um PDF pronto para enviar ao cliente com os dados acima.</p>
+    <h2><span class="num">5</span> Proposta</h2>
+    <p class="hint">Gera um PDF pronto para enviar ao cliente com os itens acima.</p>
     <button id="gerar-proposta">Gerar proposta em PDF</button>
   </section>
 </div>
@@ -485,15 +582,17 @@ button.secondary:hover{background:var(--teal-soft);}
   </div>
   <table>
     <thead>
-      <tr><th>Item</th><th style="text-align:right">Valor</th></tr>
+      <tr>
+        <th>PN</th>
+        <th style="text-align:center">Qtd.</th>
+        <th style="text-align:right">Preço unitário</th>
+        <th style="text-align:right">Total</th>
+      </tr>
     </thead>
-    <tbody>
-      <tr><td id="p-produto">Produto</td><td class="num" id="p-linha-produto">—</td></tr>
-      <tr><td>Custo (CMV)</td><td class="num" id="p-cmv">—</td></tr>
-      <tr><td>Impostos incidentes</td><td class="num" id="p-impostos">—</td></tr>
-      <tr><td>Margem</td><td class="num" id="p-margem">—</td></tr>
-      <tr class="p-total-row"><td>Preço final</td><td class="num" id="p-total">—</td></tr>
-    </tbody>
+    <tbody id="p-items-tbody"></tbody>
+    <tfoot>
+      <tr class="p-total-row"><td colspan="3">Total geral</td><td class="num" id="p-total-geral">—</td></tr>
+    </tfoot>
   </table>
   <div class="p-obs" id="p-obs"></div>
 </div>
@@ -531,6 +630,142 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs
     apply(current);
   });
 })();
+
+/* ---------------------------------------------------------------------
+   HELPERS
+--------------------------------------------------------------------- */
+function num(id){ return parseFloat(document.getElementById(id).value) || 0; }
+function fmtBRL(n){ return (n || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
+function escapeHtml(str){
+  return String(str == null ? '' : str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+function freteAtivo(){
+  return !document.getElementById('frete-box').classList.contains('hidden');
+}
+
+/* ---------------------------------------------------------------------
+   ITENS DA PROPOSTA
+--------------------------------------------------------------------- */
+let items = [];
+let itemCounter = 0;
+
+function calcItemValues(custo, qtd, totalQtd){
+  const inPct = num('icms-in') + num('pis-in') + num('cofins-in');
+  const ipiPct = num('ipi-in');
+  const outPct = num('icms-out') + num('pis-out') + num('cofins-out') + num('iss-out');
+  const margemPct = num('margem-out');
+  const totalOutFrac = (outPct + margemPct) / 100;
+
+  const freteTotal = freteAtivo() ? num('frete-valor') : 0;
+  const freteUnit = (freteTotal > 0 && totalQtd > 0) ? freteTotal / totalQtd : 0;
+
+  const impEntradaValor = custo * inPct / 100;
+  const ipiCusto = custo * ipiPct / 100;
+  const cmv = custo - impEntradaValor + ipiCusto + freteUnit;
+
+  let precoFinal = 0, impSaidaValor = 0, warn = false;
+  if(totalOutFrac >= 1){
+    warn = true;
+  } else {
+    precoFinal = cmv / (1 - totalOutFrac);
+    impSaidaValor = precoFinal * outPct / 100;
+  }
+  const total = precoFinal * (parseFloat(qtd) || 0);
+  return {impEntradaValor, cmv, impSaidaValor, precoFinal, total, warn};
+}
+
+function recalcAll(){
+  const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
+  let grandTotal = 0;
+  let anyWarn = false;
+
+  items.forEach(it => {
+    const r = calcItemValues(it.custo, it.qtd, totalQtd);
+    if(r.warn) anyWarn = true;
+    grandTotal += r.total;
+    const row = document.querySelector('tr[data-row-id="' + it.id + '"]');
+    if(row){
+      row.querySelector('.c-imp-entrada').textContent = fmtBRL(r.impEntradaValor);
+      row.querySelector('.c-cmv').textContent = fmtBRL(r.cmv);
+      row.querySelector('.c-imp-saida').textContent = fmtBRL(r.impSaidaValor);
+      row.querySelector('.c-preco-final').textContent = fmtBRL(r.precoFinal);
+      row.querySelector('.c-total').textContent = fmtBRL(r.total);
+    }
+  });
+
+  document.getElementById('grand-total').textContent = fmtBRL(grandTotal);
+  const warnEl = document.getElementById('pricing-warning');
+  if(anyWarn){
+    warnEl.style.display = 'block';
+    warnEl.textContent = 'A soma de impostos de saída + margem é igual ou maior que 100%. Ajuste os percentuais — o preço final não pode ser calculado assim.';
+  } else {
+    warnEl.style.display = 'none';
+  }
+}
+
+function addItem(pn, custo, qtd){
+  pn = pn || '';
+  custo = custo || 0;
+  qtd = (qtd === undefined || qtd === null) ? 1 : qtd;
+
+  itemCounter++;
+  const id = 'i' + itemCounter;
+  items.push({id: id, pn: pn, custo: custo, qtd: qtd});
+
+  const tr = document.createElement('tr');
+  tr.setAttribute('data-row-id', id);
+  tr.innerHTML =
+    '<td><input type="text" class="cell-pn" value="' + escapeHtml(pn) + '" placeholder="PN"></td>' +
+    '<td><input type="number" class="cell-custo" step="0.01" value="' + custo + '"></td>' +
+    '<td><input type="number" class="cell-qtd" step="1" min="0" value="' + qtd + '"></td>' +
+    '<td class="calc c-imp-entrada">R$ 0,00</td>' +
+    '<td class="calc c-cmv">R$ 0,00</td>' +
+    '<td class="calc c-imp-saida">R$ 0,00</td>' +
+    '<td class="calc c-preco-final strong">R$ 0,00</td>' +
+    '<td class="calc c-total strong">R$ 0,00</td>' +
+    '<td><button type="button" class="row-remove" aria-label="Remover item">✕</button></td>';
+
+  document.getElementById('items-tbody').appendChild(tr);
+
+  tr.querySelector('.cell-pn').addEventListener('input', (e) => {
+    const it = items.find(i => i.id === id);
+    if(it) it.pn = e.target.value;
+  });
+  tr.querySelector('.cell-custo').addEventListener('input', (e) => {
+    const it = items.find(i => i.id === id);
+    if(it){ it.custo = parseFloat(e.target.value) || 0; recalcAll(); }
+  });
+  tr.querySelector('.cell-qtd').addEventListener('input', (e) => {
+    const it = items.find(i => i.id === id);
+    if(it){ it.qtd = parseFloat(e.target.value) || 0; recalcAll(); }
+  });
+  tr.querySelector('.row-remove').addEventListener('click', () => {
+    items = items.filter(i => i.id !== id);
+    tr.remove();
+    recalcAll();
+  });
+
+  recalcAll();
+  return id;
+}
+
+document.getElementById('add-item').addEventListener('click', () => addItem('', 0, 1));
+
+const rateIds = ['icms-in','pis-in','cofins-in','ipi-in','icms-out','pis-out','cofins-out','iss-out','margem-out','frete-valor'];
+rateIds.forEach(id => document.getElementById(id).addEventListener('input', recalcAll));
+
+document.getElementById('frete-toggle').addEventListener('click', () => {
+  const box = document.getElementById('frete-box');
+  const btn = document.getElementById('frete-toggle');
+  const willShow = box.classList.contains('hidden');
+  box.classList.toggle('hidden', !willShow);
+  btn.classList.toggle('active', willShow);
+  btn.textContent = willShow ? '− Remover frete do preço' : '+ Considerar frete no preço';
+  recalcAll();
+});
+
+/* linha inicial */
+addItem('', 0, 1);
 
 /* ---------------------------------------------------------------------
    EXTRAÇÃO DO PDF
@@ -576,18 +811,20 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
 
     if(fMatch) document.getElementById('f-fornecedor').value = fMatch[1].trim().slice(0,80);
     if(pMatch) document.getElementById('f-produto').value = pMatch[1].trim().slice(0,80);
-    if(cMatch){
+    if(cMatch && items.length){
       const val = parseCurrencyToNumber(cMatch[1]);
       if(val !== null){
-        document.getElementById('preco-compra').value = val.toFixed(2);
-        recalc();
+        items[0].custo = val;
+        const row = document.querySelector('tr[data-row-id="' + items[0].id + '"]');
+        if(row) row.querySelector('.cell-custo').value = val.toFixed(2);
+        recalcAll();
       }
     }
 
-    const found = [fMatch && 'fornecedor', pMatch && 'produto', cMatch && 'preço'].filter(Boolean);
+    const found = [fMatch && 'fornecedor', pMatch && 'produto', cMatch && 'preço do 1º item'].filter(Boolean);
     if(found.length){
       statusEl.className = 'ok';
-      statusEl.textContent = `Extraído automaticamente: ${found.join(', ')}. Confira os campos abaixo antes de prosseguir.`;
+      statusEl.textContent = 'Extraído automaticamente: ' + found.join(', ') + '. Confira os campos abaixo antes de prosseguir.';
     } else {
       statusEl.className = 'err';
       statusEl.textContent = 'Não foi possível reconhecer os campos automaticamente neste layout. Preencha manualmente — ajuste os padrões em PATTERNS no código para este modelo de PDF.';
@@ -599,83 +836,50 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
 });
 
 /* ---------------------------------------------------------------------
-   CÁLCULO — método do markup divisor (comum na precificação brasileira)
-   CMV = preço de compra − créditos de entrada + IPI não recuperável + despesas
-   Preço de saída = CMV / (1 − %impostos de saída − %margem)
---------------------------------------------------------------------- */
-const ids = ['preco-compra','icms-in','pis-in','cofins-in','ipi-in',
-             'icms-out','pis-out','cofins-out','iss-out','margem-out'];
-ids.forEach(id => document.getElementById(id).addEventListener('input', recalc));
-
-function num(id){ return parseFloat(document.getElementById(id).value) || 0; }
-function fmtBRL(n){ return n.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
-
-function recalc(){
-  const compra = num('preco-compra');
-  const creditos = compra * (num('icms-in') + num('pis-in') + num('cofins-in')) / 100;
-  const ipiCusto = compra * num('ipi-in') / 100;
-  const cmv = compra - creditos + ipiCusto;
-
-  const pctSaidaImpostos = num('icms-out') + num('pis-out') + num('cofins-out') + num('iss-out');
-  const pctMargem = num('margem-out');
-  const pctTotal = (pctSaidaImpostos + pctMargem) / 100;
-
-  const warnEl = document.getElementById('pricing-warning');
-  let precoSaida = 0, impostosValor = 0, margemValor = 0;
-
-  if(pctTotal >= 1){
-    warnEl.style.display = 'block';
-    warnEl.textContent = 'A soma de impostos de saída + margem é igual ou maior que 100%. Ajuste os percentuais — o preço de saída não pode ser calculado assim.';
-  } else {
-    warnEl.style.display = 'none';
-    precoSaida = cmv / (1 - pctTotal);
-    impostosValor = precoSaida * pctSaidaImpostos / 100;
-    margemValor = precoSaida * pctMargem / 100;
-  }
-
-  document.getElementById('out-cmv').textContent = fmtBRL(cmv);
-  document.getElementById('out-preco-saida').textContent = fmtBRL(precoSaida);
-  document.getElementById('out-impostos-saida').textContent = fmtBRL(impostosValor);
-  document.getElementById('out-margem-saida').textContent = fmtBRL(margemValor);
-}
-recalc();
-
-/* ---------------------------------------------------------------------
    GERAÇÃO DA PROPOSTA EM PDF
 --------------------------------------------------------------------- */
 document.getElementById('gerar-proposta').addEventListener('click', () => {
-  const cmvText = document.getElementById('out-cmv').textContent;
-  const precoText = document.getElementById('out-preco-saida').textContent;
-  const impostosText = document.getElementById('out-impostos-saida').textContent;
-  const margemText = document.getElementById('out-margem-saida').textContent;
-  const produto = document.getElementById('f-produto').value || 'Item proposto';
   const fornecedor = document.getElementById('f-fornecedor').value || '—';
   const cliente = document.getElementById('f-cliente').value || '—';
-  const obs = document.getElementById('f-obs').value || '';
+  const obsBase = document.getElementById('f-obs').value || '';
   const dataInput = document.getElementById('f-data').value;
   const dataFmt = dataInput ? new Date(dataInput + 'T00:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 
+  const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
+  let grandTotal = 0;
+  const rowsHtml = items.map(it => {
+    const r = calcItemValues(it.custo, it.qtd, totalQtd);
+    grandTotal += r.total;
+    return '<tr>' +
+      '<td>' + escapeHtml(it.pn || 'Item') + '</td>' +
+      '<td style="text-align:center">' + (it.qtd || 0) + '</td>' +
+      '<td class="num">' + fmtBRL(r.precoFinal) + '</td>' +
+      '<td class="num">' + fmtBRL(r.total) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  document.getElementById('p-items-tbody').innerHTML = rowsHtml || '<tr><td colspan="4">Nenhum item adicionado.</td></tr>';
+  document.getElementById('p-total-geral').textContent = fmtBRL(grandTotal);
   document.getElementById('p-data-emissao').textContent = dataFmt;
   document.getElementById('p-cliente').textContent = cliente;
   document.getElementById('p-fornecedor').textContent = fornecedor;
-  document.getElementById('p-produto').textContent = produto;
-  document.getElementById('p-linha-produto').textContent = precoText;
-  document.getElementById('p-cmv').textContent = cmvText;
-  document.getElementById('p-impostos').textContent = impostosText;
-  document.getElementById('p-margem').textContent = margemText;
-  document.getElementById('p-total').textContent = precoText;
-  document.getElementById('p-obs').textContent = obs;
+
+  let obsFinal = obsBase;
+  if(freteAtivo() && num('frete-valor') > 0){
+    const freteNote = 'Frete de ' + fmtBRL(num('frete-valor')) + ' considerado na composição do preço.';
+    obsFinal = obsFinal ? (obsFinal + '\n\n' + freteNote) : freteNote;
+  }
+  document.getElementById('p-obs').textContent = obsFinal;
 
   const el = document.getElementById('proposal-template');
-  el.style.left = '0px';
-  html2pdf().set({
-    margin: 0,
-    filename: `proposta-${(cliente||'cliente').toLowerCase().replace(/\s+/g,'-')}.pdf`,
-    html2canvas: { scale: 2 },
-    jsPDF: { unit: 'px', format: [794, 1123], orientation: 'portrait' }
-  }).from(el).save().then(() => {
-    el.style.left = '-9999px';
-  });
+  setTimeout(() => {
+    html2pdf().set({
+      margin: 0,
+      filename: 'proposta-' + (cliente || 'cliente').toLowerCase().replace(/\s+/g,'-') + '.pdf',
+      html2canvas: { scale: 2, backgroundColor: '#FFFFFF', useCORS: true },
+      jsPDF: { unit: 'px', format: [794, 1123], orientation: 'portrait' }
+    }).from(el).save();
+  }, 50);
 });
 </script>
 
