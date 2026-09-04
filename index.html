@@ -11,7 +11,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
 html{color-scheme:light;}
@@ -185,6 +184,17 @@ section > .hint{
   color:var(--ink-soft);
 }
 .grid label.wide{grid-column:1 / -1;}
+.grid .subhead{
+  grid-column:1 / -1;
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:13px;
+  color:var(--teal);
+  margin:6px 0 -2px;
+  padding-top:10px;
+  border-top:1px solid var(--line);
+}
+.grid .subhead:first-child{border-top:none; padding-top:0; margin-top:0;}
 input, textarea{
   font-family:var(--sans);
   font-size:14px;
@@ -348,88 +358,165 @@ table.items-table tfoot td{
   align-items:center;
 }
 
-/* printable proposal — sempre em papel claro, independente do tema do site */
+/* ---------------------------------------------------------------------
+   PROPOSTA IMPRIMÍVEL
+   Fica invisível na tela; só aparece no diálogo de impressão do
+   navegador (Ctrl+P / Cmd+P), onde a pessoa escolhe "Salvar como PDF".
+   Isso evita depender de bibliotecas externas para gerar o arquivo.
+--------------------------------------------------------------------- */
+#proposal-template{ display:none; }
+
+@media print{
+  @page{ margin:16mm 16mm; }
+  body *{ visibility:hidden; }
+  #proposal-template, #proposal-template *{ visibility:visible; }
+  #proposal-template{
+    display:block;
+    position:absolute;
+    left:0; top:0; width:100%;
+  }
+  .print-page{ page-break-after:always; }
+  .print-page:last-of-type{ page-break-after:auto; }
+}
+
 #proposal-template{
-  position:absolute;
-  left:-9999px;
-  top:0;
-  width:794px;
   background:#FFFFFF;
   color:#1E2A24;
   font-family:var(--sans);
-  padding:56px;
 }
-#proposal-template .p-header{
+.print-page{ padding:8mm 2mm; position:relative; }
+
+/* capa */
+.cover-page{
+  min-height:250mm;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+.cover-title{ text-align:center; margin-top:20mm; }
+.cover-title h1{
+  font-family:var(--serif);
+  font-size:26px;
+  letter-spacing:.02em;
+  margin:0 0 6px;
+  color:#1E2A24;
+}
+.cover-title p{
+  font-size:13px;
+  color:#4B564F;
+  margin:0;
+}
+.cover-logo{ text-align:center; margin:24mm 0; }
+.logo-img{ max-height:90px; max-width:260px; }
+.logo-placeholder{
+  display:inline-block;
+  border:2px solid #1F5C4E;
+  color:#1F5C4E;
+  font-family:var(--serif);
+  font-weight:700;
+  font-size:22px;
+  letter-spacing:.06em;
+  padding:14px 28px;
+  border-radius:4px;
+}
+.cover-project{ text-align:center; margin-bottom:10mm; }
+.cover-project h2{
+  font-family:var(--serif);
+  font-size:19px;
+  font-weight:600;
+  margin:0 0 8px;
+  color:#1E2A24;
+}
+.cover-project p{ font-size:13px; color:#4B564F; margin:0; }
+.cover-footer-block{
   display:flex;
   justify-content:space-between;
   align-items:flex-end;
-  border-bottom:2px solid #1F5C4E;
-  padding-bottom:18px;
-  margin-bottom:28px;
+  gap:20px;
+  border-top:1px solid #D9D3C3;
+  padding-top:14px;
 }
-#proposal-template .p-header h1{
+.cover-contact strong{ display:block; font-size:14px; margin-bottom:2px; }
+.cover-contact span{ display:block; font-size:12px; color:#4B564F; }
+.cover-contact p{ font-size:11px; color:#4B564F; margin:8px 0 0; max-width:38ch; }
+.cover-client-card{
+  border:1px solid #D9D3C3;
+  border-radius:4px;
+  padding:10px 16px;
+  min-width:200px;
+}
+.client-label{
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  color:#4B564F;
+  margin-top:6px;
+}
+.client-label:first-child{margin-top:0;}
+.cover-client-card strong{ display:block; font-size:14px; }
+
+/* páginas de conteúdo */
+.page-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  border-bottom:1px solid #D9D3C3;
+  padding-bottom:10px;
+  margin-bottom:20px;
+  font-size:11px;
+  color:#4B564F;
+}
+.page-header .ph-empresa{ font-weight:700; color:#1E2A24; }
+.section-title{
   font-family:var(--serif);
-  font-size:26px;
-  margin:0;
+  font-weight:600;
+  font-size:16px;
   color:#1E2A24;
+  margin:22px 0 10px;
 }
-#proposal-template .p-header .p-date{
-  font-family:var(--mono);
-  font-size:12px;
-  color:#4B564F;
-}
-#proposal-template .p-meta{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:6px 24px;
-  font-size:13px;
-  margin-bottom:28px;
-}
-#proposal-template .p-meta div span{
-  display:block;
-  color:#4B564F;
-  font-size:11px;
-  text-transform:uppercase;
-  letter-spacing:.04em;
-}
-#proposal-template table{
-  width:100%;
-  border-collapse:collapse;
-  margin-bottom:24px;
-}
-#proposal-template table th{
-  text-align:left;
-  font-size:11px;
-  text-transform:uppercase;
-  letter-spacing:.04em;
-  color:#4B564F;
-  border-bottom:1px solid #D9D3C3;
-  padding:8px 6px;
-}
-#proposal-template table td{
-  padding:10px 6px;
-  border-bottom:1px solid #D9D3C3;
+.text-block p, .text-block .p-obs-text{
   font-size:13.5px;
   color:#1E2A24;
+  white-space:pre-wrap;
+  margin:0;
 }
-#proposal-template table td.num{
-  font-family:var(--mono);
-  text-align:right;
+table.rev-table, table.scope-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-bottom:6px;
 }
-#proposal-template tfoot .p-total-row td{
+table.rev-table th, table.scope-table th{
+  text-align:left;
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:#4B564F;
+  border-bottom:1px solid #D9D3C3;
+  padding:6px 6px;
+}
+table.rev-table td, table.scope-table td{
+  padding:8px 6px;
+  border-bottom:1px solid #D9D3C3;
+  font-size:13px;
+  color:#1E2A24;
+}
+table.scope-table td.num{ font-family:var(--mono); text-align:right; }
+table.scope-table tfoot .p-total-row td{
   font-weight:700;
-  font-size:17px;
+  font-size:14.5px;
   border-bottom:none;
   border-top:2px solid #1F5C4E;
   color:#1F5C4E;
 }
-#proposal-template .p-obs{
-  font-size:12px;
+.page-footer{
+  position:absolute;
+  bottom:6mm; left:2mm; right:2mm;
+  display:flex;
+  justify-content:space-between;
+  font-size:10.5px;
   color:#4B564F;
-  margin-top:32px;
   border-top:1px solid #D9D3C3;
-  padding-top:14px;
-  white-space:pre-wrap;
+  padding-top:6px;
 }
 
 @media (max-width: 560px){
@@ -462,22 +549,57 @@ table.items-table tfoot td{
   </section>
 
   <section id="data-step">
-    <h2><span class="num">2</span> Dados do documento</h2>
-    <p class="hint">Preenchidos pela extração do PDF quando encontrados. Edite livremente.</p>
+    <h2><span class="num">2</span> Dados da proposta</h2>
+    <p class="hint">Usados para montar a capa e o rodapé do PDF final.</p>
     <div class="grid">
-      <label>Fornecedor
-        <input id="f-fornecedor" placeholder="Razão social">
+      <div class="subhead">Sua empresa (emitente)</div>
+      <label>Nome da empresa
+        <input id="f-empresa" placeholder="Sua Empresa Ltda">
       </label>
-      <label>Produto / Descrição geral
-        <input id="f-produto" placeholder="Descrição da proposta">
+      <label>Logo (opcional)
+        <input id="f-logo" type="file" accept="image/*">
       </label>
+      <label>Responsável comercial
+        <input id="f-responsavel" placeholder="Nome de quem assina">
+      </label>
+      <label>Cargo
+        <input id="f-cargo" placeholder="Ex: Analista Comercial">
+      </label>
+      <label>E-mail
+        <input id="f-email" type="email" placeholder="nome@empresa.com">
+      </label>
+      <label>Telefone
+        <input id="f-telefone" placeholder="+55 (11) 90000-0000">
+      </label>
+      <label class="wide">Endereço
+        <input id="f-endereco" placeholder="Rua, número, bairro, cidade - UF">
+      </label>
+
+      <div class="subhead">Cliente e referência</div>
       <label>Proposta para (cliente)
         <input id="f-cliente" placeholder="Nome do cliente">
+      </label>
+      <label>Código da proposta
+        <input id="f-codigo-proposta" placeholder="Ex: PROP-2026-001 REV0">
+      </label>
+      <label>Código da oportunidade
+        <input id="f-oportunidade" placeholder="Ex: 7004644795">
       </label>
       <label>Data da proposta
         <input id="f-data" type="date">
       </label>
-      <label class="wide">Observações
+
+      <div class="subhead">Fornecimento e textos</div>
+      <label class="wide">Título do fornecimento
+        <input id="f-produto" placeholder="Ex: Fornecimento de equipamentos BIFOLD">
+      </label>
+      <label class="wide">Fornecedor de referência (uso interno, extraído do PDF)
+        <input id="f-fornecedor" placeholder="Razão social do fornecedor">
+      </label>
+      <label class="wide">Sobre a empresa (opcional — aparece na página de apresentação)
+        <textarea id="f-sobre-empresa" placeholder="Um parágrafo curto sobre a sua empresa..."></textarea>
+      </label>
+      <label class="wide">Notas / Observações
         <textarea id="f-obs" placeholder="Condições de pagamento, prazo de entrega, validade da proposta..."></textarea>
       </label>
     </div>
@@ -575,36 +697,104 @@ table.items-table tfoot td{
 
   <section id="proposal-step">
     <h2><span class="num">5</span> Proposta</h2>
-    <p class="hint">Gera um PDF pronto para enviar ao cliente com os itens acima.</p>
+    <p class="hint">Abre o diálogo de impressão do navegador com a proposta pronta — escolha "Salvar como PDF" como destino para baixar o arquivo.</p>
     <button id="gerar-proposta">Gerar proposta em PDF</button>
   </section>
 </div>
 
-<!-- printable template, kept off-screen and rendered to PDF -->
+<!-- Modelo de impressão: invisível na tela, só aparece no diálogo de impressão -->
 <div id="proposal-template">
-  <div class="p-header">
-    <h1 id="p-titulo">Proposta Comercial</h1>
-    <div class="p-date" id="p-data-emissao"></div>
-  </div>
-  <div class="p-meta">
-    <div><span>Para</span><strong id="p-cliente">—</strong></div>
-    <div><span>Fornecedor de referência</span><strong id="p-fornecedor">—</strong></div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>PN</th>
-        <th style="text-align:center">Qtd.</th>
-        <th style="text-align:right">Preço unitário</th>
-        <th style="text-align:right">Total</th>
-      </tr>
-    </thead>
-    <tbody id="p-items-tbody"></tbody>
-    <tfoot>
-      <tr class="p-total-row"><td colspan="3">Total geral</td><td class="num" id="p-total-geral">—</td></tr>
-    </tfoot>
-  </table>
-  <div class="p-obs" id="p-obs"></div>
+
+  <section class="print-page cover-page">
+    <div class="cover-title">
+      <h1>PROPOSTA COMERCIAL</h1>
+      <p id="p-codigo-sub"></p>
+    </div>
+    <div class="cover-logo" id="p-logo-wrap">
+      <div class="logo-placeholder" id="p-logo-placeholder">EMPRESA</div>
+    </div>
+    <div class="cover-project">
+      <h2 id="p-titulo-projeto">Fornecimento</h2>
+      <p id="p-data-cover"></p>
+    </div>
+    <div class="cover-footer-block">
+      <div class="cover-contact">
+        <strong id="p-responsavel">—</strong>
+        <span id="p-cargo"></span>
+        <span id="p-email"></span>
+        <span id="p-telefone"></span>
+        <p id="p-endereco"></p>
+      </div>
+      <div class="cover-client-card">
+        <div class="client-label">Cliente</div>
+        <strong id="p-cliente-cover">—</strong>
+        <div class="client-label">Oportunidade</div>
+        <strong id="p-oportunidade-cover">—</strong>
+      </div>
+    </div>
+  </section>
+
+  <section class="print-page">
+    <header class="page-header">
+      <div class="ph-empresa" id="p-header-empresa-1"></div>
+      <div class="ph-endereco" id="p-header-endereco-1"></div>
+    </header>
+
+    <div class="section-title">Índice de Revisões</div>
+    <table class="rev-table">
+      <thead><tr><th>Ref.</th><th>Data</th><th>Descrição</th></tr></thead>
+      <tbody><tr><td>0</td><td id="p-rev-data"></td><td>Emissão inicial</td></tr></tbody>
+    </table>
+
+    <div id="p-apresentacao-block" class="text-block hidden">
+      <div class="section-title">1. Apresentação</div>
+      <p id="p-apresentacao-text"></p>
+    </div>
+
+    <div class="text-block">
+      <div class="section-title">2. Objetivo</div>
+      <p id="p-objetivo-text"></p>
+    </div>
+
+    <footer class="page-footer">
+      <span id="p-footer-titulo-1"></span>
+      <span>2</span>
+    </footer>
+  </section>
+
+  <section class="print-page">
+    <header class="page-header">
+      <div class="ph-empresa" id="p-header-empresa-2"></div>
+      <div class="ph-endereco" id="p-header-endereco-2"></div>
+    </header>
+
+    <div class="text-block">
+      <div class="section-title">3. Escopo de Fornecimento</div>
+      <table class="scope-table">
+        <thead>
+          <tr><th>Item</th><th>PN</th><th style="text-align:center">Qtd.</th><th style="text-align:right">Preço unitário</th><th style="text-align:right">Total</th></tr>
+        </thead>
+        <tbody id="p-items-tbody"></tbody>
+        <tfoot><tr class="p-total-row"><td colspan="4">Total geral</td><td class="num" id="p-total-geral">—</td></tr></tfoot>
+      </table>
+    </div>
+
+    <div id="p-notas-block" class="text-block hidden">
+      <div class="section-title">4. Notas/Observações</div>
+      <p class="p-obs-text" id="p-obs"></p>
+    </div>
+
+    <div class="text-block">
+      <div class="section-title">5. Contatos</div>
+      <p id="p-contatos-text"></p>
+    </div>
+
+    <footer class="page-footer">
+      <span id="p-footer-titulo-2"></span>
+      <span>3</span>
+    </footer>
+  </section>
+
 </div>
 
 <script>
@@ -654,6 +844,16 @@ function escapeHtml(str){
 function freteAtivo(){
   return !document.getElementById('frete-box').classList.contains('hidden');
 }
+
+/* logo opcional: guarda como dataURL para usar na capa */
+let logoDataUrl = null;
+document.getElementById('f-logo').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) { logoDataUrl = null; return; }
+  const reader = new FileReader();
+  reader.onload = () => { logoDataUrl = reader.result; };
+  reader.readAsDataURL(file);
+});
 
 /* ---------------------------------------------------------------------
    ITENS DA PROPOSTA
@@ -854,54 +1054,107 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
 });
 
 /* ---------------------------------------------------------------------
-   GERAÇÃO DA PROPOSTA EM PDF
+   GERAÇÃO DA PROPOSTA — via impressão nativa do navegador
 --------------------------------------------------------------------- */
 document.getElementById('gerar-proposta').addEventListener('click', () => {
-  if(typeof html2pdf === 'undefined'){
-    alert('A biblioteca de geração de PDF não carregou (verifique sua conexão ou se algo está bloqueando cdnjs.cloudflare.com) e não é possível gerar o arquivo agora.');
-    return;
-  }
-  const fornecedor = document.getElementById('f-fornecedor').value || '—';
+  const empresa = document.getElementById('f-empresa').value || 'Sua Empresa';
+  const responsavel = document.getElementById('f-responsavel').value || '—';
+  const cargo = document.getElementById('f-cargo').value || '';
+  const email = document.getElementById('f-email').value || '';
+  const telefone = document.getElementById('f-telefone').value || '';
+  const endereco = document.getElementById('f-endereco').value || '';
   const cliente = document.getElementById('f-cliente').value || '—';
+  const codigoProposta = document.getElementById('f-codigo-proposta').value || '';
+  const oportunidade = document.getElementById('f-oportunidade').value || '—';
+  const produto = document.getElementById('f-produto').value || 'Fornecimento';
+  const sobreEmpresa = document.getElementById('f-sobre-empresa').value || '';
   const obsBase = document.getElementById('f-obs').value || '';
   const dataInput = document.getElementById('f-data').value;
   const dataFmt = dataInput ? new Date(dataInput + 'T00:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 
+  /* capa */
+  document.getElementById('p-codigo-sub').textContent = codigoProposta;
+  document.getElementById('p-titulo-projeto').textContent = produto;
+  document.getElementById('p-data-cover').textContent = dataFmt;
+  document.getElementById('p-responsavel').textContent = responsavel;
+  document.getElementById('p-cargo').textContent = cargo;
+  document.getElementById('p-email').textContent = email;
+  document.getElementById('p-telefone').textContent = telefone;
+  document.getElementById('p-endereco').textContent = endereco;
+  document.getElementById('p-cliente-cover').textContent = cliente;
+  document.getElementById('p-oportunidade-cover').textContent = oportunidade;
+
+  const logoWrap = document.getElementById('p-logo-wrap');
+  if(logoDataUrl){
+    logoWrap.innerHTML = '<img class="logo-img" src="' + logoDataUrl + '" alt="Logo">';
+  } else {
+    logoWrap.innerHTML = '<div class="logo-placeholder">' + escapeHtml(empresa) + '</div>';
+  }
+
+  /* cabeçalhos das páginas internas */
+  ['p-header-empresa-1','p-header-empresa-2'].forEach(id => document.getElementById(id).textContent = empresa);
+  ['p-header-endereco-1','p-header-endereco-2'].forEach(id => document.getElementById(id).textContent = endereco);
+  const footerLabel = (codigoProposta ? codigoProposta + ' — ' : '') + produto;
+  document.getElementById('p-footer-titulo-1').textContent = footerLabel;
+  document.getElementById('p-footer-titulo-2').textContent = footerLabel;
+
+  /* revisão / apresentação / objetivo */
+  document.getElementById('p-rev-data').textContent = dataFmt;
+  const apresentacaoBlock = document.getElementById('p-apresentacao-block');
+  if(sobreEmpresa.trim()){
+    apresentacaoBlock.classList.remove('hidden');
+    document.getElementById('p-apresentacao-text').textContent = sobreEmpresa;
+  } else {
+    apresentacaoBlock.classList.add('hidden');
+  }
+  document.getElementById('p-objetivo-text').textContent =
+    'Esta proposta tem por objetivo apresentar as condições comerciais para o ' +
+    produto.charAt(0).toLowerCase() + produto.slice(1) + ' para ' + cliente + '.';
+
+  /* escopo de fornecimento */
   const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
   let grandTotal = 0;
-  const rowsHtml = items.map(it => {
+  const rowsHtml = items.map((it, idx) => {
     const r = calcItemValues(it.custo, it.qtd, totalQtd);
     grandTotal += r.total;
     return '<tr>' +
-      '<td>' + escapeHtml(it.pn || 'Item') + '</td>' +
+      '<td>' + (idx + 1) + '</td>' +
+      '<td>' + escapeHtml(it.pn || '—') + '</td>' +
       '<td style="text-align:center">' + (it.qtd || 0) + '</td>' +
       '<td class="num">' + fmtBRL(r.precoFinal) + '</td>' +
       '<td class="num">' + fmtBRL(r.total) + '</td>' +
     '</tr>';
   }).join('');
-
-  document.getElementById('p-items-tbody').innerHTML = rowsHtml || '<tr><td colspan="4">Nenhum item adicionado.</td></tr>';
+  document.getElementById('p-items-tbody').innerHTML = rowsHtml || '<tr><td colspan="5">Nenhum item adicionado.</td></tr>';
   document.getElementById('p-total-geral').textContent = fmtBRL(grandTotal);
-  document.getElementById('p-data-emissao').textContent = dataFmt;
-  document.getElementById('p-cliente').textContent = cliente;
-  document.getElementById('p-fornecedor').textContent = fornecedor;
 
+  /* notas */
   let obsFinal = obsBase;
   if(freteAtivo() && num('frete-valor') > 0){
     const freteNote = 'Frete de ' + fmtBRL(num('frete-valor')) + ' considerado na composição do preço.';
     obsFinal = obsFinal ? (obsFinal + '\n\n' + freteNote) : freteNote;
   }
-  document.getElementById('p-obs').textContent = obsFinal;
+  const notasBlock = document.getElementById('p-notas-block');
+  if(obsFinal.trim()){
+    notasBlock.classList.remove('hidden');
+    document.getElementById('p-obs').textContent = obsFinal;
+  } else {
+    notasBlock.classList.add('hidden');
+  }
 
-  const el = document.getElementById('proposal-template');
-  setTimeout(() => {
-    html2pdf().set({
-      margin: 0,
-      filename: 'proposta-' + (cliente || 'cliente').toLowerCase().replace(/\s+/g,'-') + '.pdf',
-      html2canvas: { scale: 2, backgroundColor: '#FFFFFF', useCORS: true },
-      jsPDF: { unit: 'px', format: [794, 1123], orientation: 'portrait' }
-    }).from(el).save();
-  }, 50);
+  /* contatos */
+  const contatoLinhas = [
+    empresa + ' agradece a oportunidade e coloca-se à disposição para quaisquer esclarecimentos adicionais necessários.',
+    '',
+    'Atenciosamente,',
+    '',
+    responsavel,
+    [cargo, empresa].filter(Boolean).join(' — '),
+    [telefone, email].filter(Boolean).join(' · ')
+  ].filter(line => line !== undefined);
+  document.getElementById('p-contatos-text').textContent = contatoLinhas.join('\n');
+
+  window.print();
 });
 </script>
 
