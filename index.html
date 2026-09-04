@@ -607,7 +607,7 @@ table.scope-table tfoot .p-total-row td{
 
   <section id="pricing-step">
     <h2><span class="num">3</span> Regras de composição de preço</h2>
-    <p class="hint">Percentuais aplicados a todos os itens da tabela abaixo. Impostos de saída e margem são aplicados "por dentro" do preço final.</p>
+    <p class="hint">Os impostos de entrada são calculados individualmente conforme as fórmulas definidas. A tabela de conferência abaixo mostra IPI, ICMS, PIS/COFINS, CMV, Receita Líquida e Receita Bruta de cada item.</p>
 
     <div class="ledger">
       <div class="ledger-group-title">Impostos de entrada — para chegar ao CMV</div>
@@ -683,7 +683,7 @@ table.scope-table tfoot .p-total-row td{
         <tbody id="items-tbody"></tbody>
         <tfoot>
           <tr>
-            <td colspan="7">Total geral</td>
+            <td colspan="8">Total geral</td>
             <td id="grand-total" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
             <td></td>
           </tr>
@@ -692,6 +692,31 @@ table.scope-table tfoot .p-total-row td{
     </div>
     <div class="items-actions">
       <button id="add-item" type="button" class="secondary">+ Adicionar item</button>
+    </div>
+
+    <div style="margin-top:24px;">
+      <h3 style="font-family:var(--serif); font-size:18px; margin:0 0 10px;">Memória de cálculo por item</h3>
+      <p class="hint">Tabela de conferência com todas as etapas intermediárias dos cálculos.</p>
+      <div class="items-wrap">
+        <table class="items-table" style="min-width:1250px;">
+          <thead>
+            <tr>
+              <th>PN</th>
+              <th>Preço compra</th>
+              <th>Serviço</th>
+              <th>IPI (R$)</th>
+              <th>ICMS (R$)</th>
+              <th>PIS/COFINS (R$)</th>
+              <th>CMV (R$)</th>
+              <th>RecLiq (R$)</th>
+              <th>RecBrut (R$)</th>
+              <th>Qtd.</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="calc-detail-tbody"></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -861,47 +886,112 @@ document.getElementById('f-logo').addEventListener('change', (e) => {
 let items = [];
 let itemCounter = 0;
 
-function calcItemValues(custo, qtd, totalQtd){
-  const inPct = num('icms-in') + num('pis-in') + num('cofins-in');
-  const ipiPct = num('ipi-in');
-  const outPct = num('icms-out') + num('pis-out') + num('cofins-out') + num('iss-out');
-  const margemPct = num('margem-out');
-  const totalOutFrac = (outPct + margemPct) / 100;
+function calcItemValues(precoCompra, servico, qtd, totalQtd){
+  // Percentuais de entrada
+  const ipiInFrac = num('ipi-in') / 100;
+  const icmsInFrac = num('icms-in') / 100;
+  const pisCofinsInFrac = (num('pis-in') + num('cofins-in')) / 100;
 
+  // Percentuais de saída
+  const icmsOutFrac = num('icms-out') / 100;
+  const pisCofinsOutFrac = (num('pis-out') + num('cofins-out')) / 100;
+  const margemFrac = num('margem-out') / 100;
+
+  // Frete permanece como componente adicional do CMV, se ativado
   const freteTotal = freteAtivo() ? num('frete-valor') : 0;
   const freteUnit = (freteTotal > 0 && totalQtd > 0) ? freteTotal / totalQtd : 0;
 
-  const impEntradaValor = custo * inPct / 100;
-  const ipiCusto = custo * ipiPct / 100;
-  const cmv = custo - impEntradaValor + ipiCusto + freteUnit;
+  // IPI(R$) = (Preço de Compra / (1 + IPI%)) * IPI%
+  const ipiValor = (1 + ipiInFrac) !== 0
+    ? (precoCompra / (1 + ipiInFrac)) * ipiInFrac
+    : 0;
 
-  let precoFinal = 0, impSaidaValor = 0, warn = false;
-  if(totalOutFrac >= 1){
+  // ICMS(R$) = (Preço de Compra - IPI(R$)) * ICMS%
+  const icmsValor = (precoCompra - ipiValor) * icmsInFrac;
+
+  // PIS/COFINS(R$) = (Preço de Compra - IPI(R$) - ICMS(R$)) * PIS/COFINS%
+  const pisCofinsValor = (precoCompra - ipiValor - icmsValor) * pisCofinsInFrac;
+
+  // CMV(R$) = Serviço(R$) + Frete unitário + (Preço de Compra - IPI - ICMS - PIS/COFINS)
+  const cmv = servico + freteUnit + (precoCompra - ipiValor - icmsValor - pisCofinsValor);
+
+  // RecLiq = CMV / (1 - Margem%)
+  let recLiq = 0;
+  let recBrut = 0;
+  let impSaidaValor = 0;
+  let warn = false;
+
+  const fatorMargem = 1 - margemFrac;
+  const fatorICMS = 1 - icmsOutFrac - (icmsOutFrac * ipiInFrac);
+  const fatorPisCofins = 1 - pisCofinsOutFrac;
+
+  if(fatorMargem <= 0 || fatorICMS <= 0 || fatorPisCofins <= 0){
     warn = true;
   } else {
-    precoFinal = cmv / (1 - totalOutFrac);
-    impSaidaValor = precoFinal * outPct / 100;
+    recLiq = cmv / fatorMargem;
+
+    // RecBrut = RecLiq / (1 - ICMS% - ICMS%*IPI%) / (1 - PIS/COFINS%) * (1 + IPI%)
+    recBrut = (recLiq / fatorICMS / fatorPisCofins) * (1 + ipiInFrac);
+
+    // Mantido apenas para a coluna-resumo da tabela principal:
+    // diferença entre Receita Bruta e Receita Líquida
+    impSaidaValor = recBrut - recLiq;
   }
-  const total = precoFinal * (parseFloat(qtd) || 0);
-  return {impEntradaValor, cmv, impSaidaValor, precoFinal, total, warn};
+
+  const total = recBrut * (parseFloat(qtd) || 0);
+  const impEntradaValor = ipiValor + icmsValor + pisCofinsValor;
+
+  return {
+    ipiValor,
+    icmsValor,
+    pisCofinsValor,
+    impEntradaValor,
+    cmv,
+    recLiq,
+    recBrut,
+    impSaidaValor,
+    precoFinal: recBrut,
+    total,
+    warn
+  };
 }
 
 function recalcAll(){
   const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
   let grandTotal = 0;
   let anyWarn = false;
+  const detailBody = document.getElementById('calc-detail-tbody');
+  if(detailBody) detailBody.innerHTML = '';
 
   items.forEach(it => {
-    const r = calcItemValues(it.custo, it.qtd, totalQtd);
+    const r = calcItemValues(it.custo, it.servico || 0, it.qtd, totalQtd);
     if(r.warn) anyWarn = true;
     grandTotal += r.total;
+
     const row = document.querySelector('tr[data-row-id="' + it.id + '"]');
     if(row){
       row.querySelector('.c-imp-entrada').textContent = fmtBRL(r.impEntradaValor);
       row.querySelector('.c-cmv').textContent = fmtBRL(r.cmv);
       row.querySelector('.c-imp-saida').textContent = fmtBRL(r.impSaidaValor);
-      row.querySelector('.c-preco-final').textContent = fmtBRL(r.precoFinal);
+      row.querySelector('.c-preco-final').textContent = fmtBRL(r.recBrut);
       row.querySelector('.c-total').textContent = fmtBRL(r.total);
+    }
+
+    if(detailBody){
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escapeHtml(it.pn || '—') + '</td>' +
+        '<td class="calc">' + fmtBRL(it.custo || 0) + '</td>' +
+        '<td class="calc">' + fmtBRL(it.servico || 0) + '</td>' +
+        '<td class="calc">' + fmtBRL(r.ipiValor) + '</td>' +
+        '<td class="calc">' + fmtBRL(r.icmsValor) + '</td>' +
+        '<td class="calc">' + fmtBRL(r.pisCofinsValor) + '</td>' +
+        '<td class="calc">' + fmtBRL(r.cmv) + '</td>' +
+        '<td class="calc">' + fmtBRL(r.recLiq) + '</td>' +
+        '<td class="calc strong">' + fmtBRL(r.recBrut) + '</td>' +
+        '<td class="calc">' + (parseFloat(it.qtd) || 0) + '</td>' +
+        '<td class="calc strong">' + fmtBRL(r.total) + '</td>';
+      detailBody.appendChild(tr);
     }
   });
 
@@ -909,26 +999,28 @@ function recalcAll(){
   const warnEl = document.getElementById('pricing-warning');
   if(anyWarn){
     warnEl.style.display = 'block';
-    warnEl.textContent = 'A soma de impostos de saída + margem é igual ou maior que 100%. Ajuste os percentuais — o preço final não pode ser calculado assim.';
+    warnEl.textContent = 'Os percentuais informados geram um denominador igual ou menor que zero em uma das fórmulas de Receita Líquida ou Receita Bruta. Ajuste os percentuais.';
   } else {
     warnEl.style.display = 'none';
   }
 }
 
-function addItem(pn, custo, qtd){
+function addItem(pn, custo, qtd, servico){
   pn = pn || '';
   custo = custo || 0;
+  servico = servico || 0;
   qtd = (qtd === undefined || qtd === null) ? 1 : qtd;
 
   itemCounter++;
   const id = 'i' + itemCounter;
-  items.push({id: id, pn: pn, custo: custo, qtd: qtd});
+  items.push({id: id, pn: pn, custo: custo, servico: servico, qtd: qtd});
 
   const tr = document.createElement('tr');
   tr.setAttribute('data-row-id', id);
   tr.innerHTML =
     '<td><input type="text" class="cell-pn" value="' + escapeHtml(pn) + '" placeholder="PN"></td>' +
     '<td><input type="number" class="cell-custo" step="0.01" value="' + custo + '"></td>' +
+    '<td><input type="number" class="cell-servico" step="0.01" value="' + servico + '"></td>' +
     '<td><input type="number" class="cell-qtd" step="1" min="0" value="' + qtd + '"></td>' +
     '<td class="calc c-imp-entrada">R$ 0,00</td>' +
     '<td class="calc c-cmv">R$ 0,00</td>' +
@@ -946,6 +1038,10 @@ function addItem(pn, custo, qtd){
   tr.querySelector('.cell-custo').addEventListener('input', (e) => {
     const it = items.find(i => i.id === id);
     if(it){ it.custo = parseFloat(e.target.value) || 0; recalcAll(); }
+  });
+  tr.querySelector('.cell-servico').addEventListener('input', (e) => {
+    const it = items.find(i => i.id === id);
+    if(it){ it.servico = parseFloat(e.target.value) || 0; recalcAll(); }
   });
   tr.querySelector('.cell-qtd').addEventListener('input', (e) => {
     const it = items.find(i => i.id === id);
@@ -1115,7 +1211,7 @@ document.getElementById('gerar-proposta').addEventListener('click', () => {
   const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
   let grandTotal = 0;
   const rowsHtml = items.map((it, idx) => {
-    const r = calcItemValues(it.custo, it.qtd, totalQtd);
+    const r = calcItemValues(it.custo, it.servico || 0, it.qtd, totalQtd);
     grandTotal += r.total;
     return '<tr>' +
       '<td>' + (idx + 1) + '</td>' +
