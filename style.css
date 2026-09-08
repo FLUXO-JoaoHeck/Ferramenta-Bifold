@@ -350,6 +350,11 @@ table.items-table tfoot td{
   margin:28px 0 12px;
 }
 .taxes-table td:not(:first-child){text-align:right;}
+.taxes-table th{text-align:right;}
+.taxes-table th:first-child{text-align:left;}
+.taxes-table thead tr:first-child th{text-align:center;}
+.taxes-table thead tr:first-child th:first-child{text-align:left;}
+.group-end{border-right:2px solid var(--teal) !important;}
 
 /* ---------------------------------------------------------------------
    PROPOSTA IMPRIMÍVEL

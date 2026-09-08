@@ -182,22 +182,34 @@
     </div>
 
     <h3 class="subtable-title">Impostos por item</h3>
-    <p class="hint">Valores totais da linha (já multiplicados pela quantidade).</p>
+    <p class="hint">Valores totais da linha (já multiplicados pela quantidade), abertos por imposto.</p>
     <div class="items-wrap">
       <table class="items-table taxes-table">
         <thead>
           <tr>
-            <th>PN</th>
-            <th>Impostos entrada</th>
-            <th>Impostos saída</th>
+            <th rowspan="2">PN</th>
+            <th colspan="3">Entrada</th>
+            <th colspan="3">Saída</th>
+          </tr>
+          <tr>
+            <th>ICMS</th>
+            <th>PIS/COFINS</th>
+            <th class="group-end">IPI</th>
+            <th>ICMS</th>
+            <th>PIS/COFINS</th>
+            <th>IPI</th>
           </tr>
         </thead>
         <tbody id="taxes-tbody"></tbody>
         <tfoot>
           <tr>
             <td>Total</td>
-            <td id="taxes-total-entrada" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
-            <td id="taxes-total-saida" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
+            <td id="tax-total-icms-in" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
+            <td id="tax-total-piscofins-in" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
+            <td id="tax-total-ipi-in" class="group-end" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
+            <td id="tax-total-icms-out" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
+            <td id="tax-total-piscofins-out" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
+            <td id="tax-total-ipi-out" style="text-align:right; font-family:var(--mono);">R$ 0,00</td>
           </tr>
         </tfoot>
       </table>
