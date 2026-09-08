@@ -1,6 +1,6 @@
 # Composição de Preço & Proposta
 
-Ferramenta em página única (HTML/CSS/JS), sem backend, para:
+Ferramenta em três arquivos (`index.html`, `style.css`, `script.js`), sem backend, para:
 1. Extrair dados de um PDF de fornecedor (texto)
 2. Editar/conferir esses dados numa interface
 3. Montar a composição de preço (compra → CMV → preço de saída)
@@ -11,13 +11,19 @@ Tudo roda no navegador — não precisa de servidor, banco de dados ou chave de 
 ## Como publicar no GitHub Pages
 
 1. Crie um repositório novo no GitHub (pode ser público ou privado, desde que o plano permita Pages).
-2. Suba o arquivo `index.html` para a raiz do repositório (via upload no site do GitHub ou `git push`).
+2. Suba os três arquivos juntos (`index.html`, `style.css`, `script.js`) para a raiz do repositório — os três precisam estar na mesma pasta, pois o `index.html` referencia os outros dois pelo nome (via upload no site do GitHub ou `git push`).
 3. Vá em **Settings → Pages**.
 4. Em "Source", selecione a branch `main` e a pasta `/ (root)`.
 5. Salve. Em alguns minutos o GitHub mostra a URL pública, algo como:
    `https://seu-usuario.github.io/nome-do-repositorio/`
 
 Qualquer atualização no `index.html` (novo commit) atualiza o site automaticamente.
+
+## Estrutura dos arquivos
+
+- `index.html` — apenas a estrutura da página (seções, campos, tabela).
+- `style.css` — toda a aparência (cores, tipografia, modo claro/escuro, layout de impressão).
+- `script.js` — toda a lógica: extração do PDF, cálculo da composição de preço, geração da proposta.
 
 ## Como funciona a extração do PDF
 
@@ -26,7 +32,7 @@ palavras-chave, três informações: fornecedor, produto/descrição e um valor
 em R$. Como você indicou que o PDF de entrada sempre segue o mesmo modelo,
 vale a pena refinar isso:
 
-No arquivo `index.html`, procure o bloco:
+No arquivo `script.js`, procure o bloco:
 
 ```js
 const PATTERNS = {
@@ -69,14 +75,14 @@ avisa e não calcula (matematicamente o preço tenderia ao infinito).
   Lucro Real): os campos de % são livres, então basta digitar a alíquota
   correta em cada campo — não há lógica de regime fixa no código.
 - **Logotipo na proposta**: adicione uma tag `<img>` dentro de
-  `#proposal-template .p-header` no `index.html`.
+  `#proposal-template .p-header` no `index.html` e o estilo correspondente em `style.css`.
 - **Mais itens por proposta**: hoje a proposta trata um item por vez; para
   múltiplos itens seria necessário guardar uma lista em vez de campos
   únicos — posso construir essa versão se fizer sentido para o seu uso.
 
 ## Estrutura do arquivo
 
-Um único arquivo `index.html` contém HTML, CSS e JavaScript. As bibliotecas
-externas (pdf.js para leitura do PDF, html2pdf.js para gerar o PDF da
-proposta) são carregadas via CDN, então é preciso estar online para usar a
-ferramenta.
+A única biblioteca externa é o `pdf.js` (leitura do PDF de entrada), carregada
+via CDN — é preciso estar online para essa etapa. A geração da proposta em PDF
+usa a função de impressão nativa do navegador (Ctrl+P → "Salvar como PDF"),
+sem depender de nenhuma biblioteca externa.
