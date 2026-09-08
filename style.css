@@ -342,6 +342,14 @@ table.items-table tfoot td{
   flex-wrap:wrap;
   align-items:center;
 }
+.subtable-title{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:16px;
+  color:var(--ink);
+  margin:28px 0 12px;
+}
+.taxes-table td:not(:first-child){text-align:right;}
 
 /* ---------------------------------------------------------------------
    PROPOSTA IMPRIMÍVEL

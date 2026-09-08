@@ -99,23 +99,37 @@ function calcItemValues(custo, qtd, totalQtd){
 function recalcAll(){
   const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
   let grandTotal = 0;
+  let totalImpEntrada = 0;
+  let totalImpSaida = 0;
   let anyWarn = false;
 
   items.forEach(it => {
     const r = calcItemValues(it.custo, it.qtd, totalQtd);
     if(r.warn) anyWarn = true;
     grandTotal += r.total;
+    const qtd = parseFloat(it.qtd) || 0;
+    const impEntradaTotalItem = r.impEntradaValor * qtd;
+    const impSaidaTotalItem = r.impSaidaValor * qtd;
+    totalImpEntrada += impEntradaTotalItem;
+    totalImpSaida += impSaidaTotalItem;
+
     const row = document.querySelector('tr[data-row-id="' + it.id + '"]');
     if(row){
-      row.querySelector('.c-imp-entrada').textContent = fmtBRL(r.impEntradaValor);
       row.querySelector('.c-cmv').textContent = fmtBRL(r.cmv);
-      row.querySelector('.c-imp-saida').textContent = fmtBRL(r.impSaidaValor);
       row.querySelector('.c-preco-final').textContent = fmtBRL(r.precoFinal);
       row.querySelector('.c-total').textContent = fmtBRL(r.total);
+    }
+    const taxRow = document.querySelector('tr[data-tax-row-id="' + it.id + '"]');
+    if(taxRow){
+      taxRow.querySelector('.tax-imp-entrada').textContent = fmtBRL(impEntradaTotalItem);
+      taxRow.querySelector('.tax-imp-saida').textContent = fmtBRL(impSaidaTotalItem);
     }
   });
 
   document.getElementById('grand-total').textContent = fmtBRL(grandTotal);
+  document.getElementById('taxes-total-entrada').textContent = fmtBRL(totalImpEntrada);
+  document.getElementById('taxes-total-saida').textContent = fmtBRL(totalImpSaida);
+
   const warnEl = document.getElementById('pricing-warning');
   if(anyWarn){
     warnEl.style.display = 'block';
@@ -140,18 +154,25 @@ function addItem(pn, custo, qtd){
     '<td><input type="text" class="cell-pn" value="' + escapeHtml(pn) + '" placeholder="PN"></td>' +
     '<td><input type="number" class="cell-custo" step="0.01" value="' + custo + '"></td>' +
     '<td><input type="number" class="cell-qtd" step="1" min="0" value="' + qtd + '"></td>' +
-    '<td class="calc c-imp-entrada">R$ 0,00</td>' +
     '<td class="calc c-cmv">R$ 0,00</td>' +
-    '<td class="calc c-imp-saida">R$ 0,00</td>' +
     '<td class="calc c-preco-final strong">R$ 0,00</td>' +
     '<td class="calc c-total strong">R$ 0,00</td>' +
     '<td><button type="button" class="row-remove" aria-label="Remover item">✕</button></td>';
 
   document.getElementById('items-tbody').appendChild(tr);
 
+  const taxRow = document.createElement('tr');
+  taxRow.setAttribute('data-tax-row-id', id);
+  taxRow.innerHTML =
+    '<td class="tax-pn">' + escapeHtml(pn || '—') + '</td>' +
+    '<td class="calc tax-imp-entrada">R$ 0,00</td>' +
+    '<td class="calc tax-imp-saida">R$ 0,00</td>';
+  document.getElementById('taxes-tbody').appendChild(taxRow);
+
   tr.querySelector('.cell-pn').addEventListener('input', (e) => {
     const it = items.find(i => i.id === id);
     if(it) it.pn = e.target.value;
+    taxRow.querySelector('.tax-pn').textContent = e.target.value || '—';
   });
   tr.querySelector('.cell-custo').addEventListener('input', (e) => {
     const it = items.find(i => i.id === id);
@@ -164,6 +185,7 @@ function addItem(pn, custo, qtd){
   tr.querySelector('.row-remove').addEventListener('click', () => {
     items = items.filter(i => i.id !== id);
     tr.remove();
+    taxRow.remove();
     recalcAll();
   });
 
