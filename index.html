@@ -96,7 +96,7 @@
 
   <section id="pricing-step">
     <h2><span class="num">3</span> Regras de composição de preço</h2>
-    <p class="hint">Cálculo em cascata: IPI é extraído "por dentro" do preço de compra, ICMS e PIS/COFINS incidem sobre a base já líquida do imposto anterior. O preço final soma margem, ICMS e PIS/COFINS de saída pelo método do divisor, reaplicando o IPI. ISS não entra nesse cálculo (uso típico para produto, não serviço).</p>
+    <p class="hint">Cálculo em cascata: o IPI de entrada é extraído "por dentro" do preço de compra; ICMS e PIS/COFINS de entrada incidem sobre a base já líquida do imposto anterior. O preço final soma margem, ICMS e PIS/COFINS de saída pelo método do divisor, e reaplica o IPI de saída (pode ser uma alíquota diferente da entrada). ISS não entra nesse cálculo (uso típico para produto, não serviço).</p>
 
     <div class="ledger">
       <div class="ledger-group-title">Impostos de entrada — para chegar ao CMV</div>
@@ -113,11 +113,15 @@
         <input id="cofins-in" type="number" step="0.01" value="0">
       </div>
       <div class="ledger-row">
-        <label>IPI (%)</label>
+        <label>IPI de entrada (%)</label>
         <input id="ipi-in" type="number" step="0.01" value="0">
       </div>
 
       <div class="ledger-group-title">Impostos de saída e margem desejada</div>
+      <div class="ledger-row">
+        <label>IPI de saída (%)</label>
+        <input id="ipi-out" type="number" step="0.01" value="0">
+      </div>
       <div class="ledger-row">
         <label>ICMS saída (%)</label>
         <input id="icms-out" type="number" step="0.01" value="0">

@@ -62,9 +62,10 @@ let items = [];
 let itemCounter = 0;
 
 function calcItemValues(custo, qtd, totalQtd){
-  const ipiF = num('ipi-in') / 100;
+  const ipiInF = num('ipi-in') / 100;
   const icmsInF = num('icms-in') / 100;
   const pisCofinsInF = (num('pis-in') + num('cofins-in')) / 100;
+  const ipiOutF = num('ipi-out') / 100;
   const icmsOutF = num('icms-out') / 100;
   const pisCofinsOutF = (num('pis-out') + num('cofins-out')) / 100;
   const margemF = num('margem-out') / 100;
@@ -72,15 +73,16 @@ function calcItemValues(custo, qtd, totalQtd){
   const freteTotal = freteAtivo() ? num('frete-valor') : 0;
   const servicoUnit = (freteTotal > 0 && totalQtd > 0) ? freteTotal / totalQtd : 0;
 
-  /* impostos de entrada — em cascata, "por dentro" para o IPI */
-  const ipiEntradaValor = custo / (1 + ipiF) * ipiF;
+  /* impostos de entrada — em cascata, "por dentro" para o IPI de entrada */
+  const ipiEntradaValor = custo / (1 + ipiInF) * ipiInF;
   const icmsEntradaValor = (custo - ipiEntradaValor) * icmsInF;
   const pisCofinsEntradaValor = (custo - ipiEntradaValor - icmsEntradaValor) * pisCofinsInF;
   const impEntradaValor = ipiEntradaValor + icmsEntradaValor + pisCofinsEntradaValor;
 
   const cmv = servicoUnit + (custo - ipiEntradaValor - icmsEntradaValor - pisCofinsEntradaValor);
 
-  const denomIcms = 1 - icmsOutF - (icmsOutF * ipiF);
+  /* impostos de saída — usa o IPI de saída, que pode ter alíquota diferente da entrada */
+  const denomIcms = 1 - icmsOutF - (icmsOutF * ipiOutF);
   const denomPisCofins = 1 - pisCofinsOutF;
   const denomMargem = 1 - margemF;
 
@@ -93,7 +95,7 @@ function calcItemValues(custo, qtd, totalQtd){
     const recLiq = cmv / denomMargem;
     const precoAposIcms = recLiq / denomIcms;
     const precoAposPisCofins = precoAposIcms / denomPisCofins;
-    precoFinal = precoAposPisCofins * (1 + ipiF);
+    precoFinal = precoAposPisCofins * (1 + ipiOutF);
 
     icmsSaidaValor = precoAposIcms - recLiq;
     pisCofinsSaidaValor = precoAposPisCofins - precoAposIcms;
@@ -228,7 +230,7 @@ function addItem(pn, custo, qtd){
 
 document.getElementById('add-item').addEventListener('click', () => addItem('', 0, 1));
 
-const rateIds = ['icms-in','pis-in','cofins-in','ipi-in','icms-out','pis-out','cofins-out','iss-out','margem-out','frete-valor'];
+const rateIds = ['icms-in','pis-in','cofins-in','ipi-in','ipi-out','icms-out','pis-out','cofins-out','iss-out','margem-out','frete-valor'];
 rateIds.forEach(id => document.getElementById(id).addEventListener('input', recalcAll));
 
 document.getElementById('frete-toggle').addEventListener('click', () => {
