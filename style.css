@@ -281,7 +281,7 @@ button.secondary.active{background:var(--teal); color:#fff;}
   border:1px solid var(--line);
   border-radius:4px;
 }
-table.items-table{width:100%; border-collapse:collapse; min-width:1160px;}
+table.items-table{width:100%; border-collapse:collapse; min-width:700px;}
 table.items-table thead th{
   text-align:left;
   font-size:11px;
@@ -349,22 +349,6 @@ table.items-table tfoot td{
   color:var(--ink);
   margin:28px 0 12px;
 }
-.taxes-table td:not(:first-child){text-align:right;}
-.taxes-table th{text-align:right;}
-.taxes-table th:first-child{text-align:left;}
-.taxes-table thead tr:first-child th{text-align:center;}
-.taxes-table thead tr:first-child th:first-child{text-align:left;}
-.group-end{border-right:2px solid var(--teal) !important;}
-table.taxes-table{min-width:700px;}
-table.items-table:not(.taxes-table) thead tr:first-child th{text-align:center;}
-table.items-table:not(.taxes-table) thead tr:first-child th[rowspan]{text-align:left;}
-table.items-table input.cell-rate{
-  width:64px;
-  min-width:64px;
-  text-align:right;
-  padding:6px 6px;
-}
-table.items-table td:has(> input.cell-rate){padding:6px 8px;}
 
 /* ---------------------------------------------------------------------
    PROPOSTA IMPRIMÍVEL
