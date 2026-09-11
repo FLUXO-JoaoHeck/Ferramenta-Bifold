@@ -57,18 +57,36 @@ document.getElementById('f-logo').addEventListener('change', (e) => {
 
 /* ---------------------------------------------------------------------
    ITENS DA PROPOSTA
+   Cada item guarda suas próprias alíquotas — elas podem variar de item
+   para item (ex: ICMS de SP x ICMS do RJ). Os campos da seção 3 servem
+   apenas como valor padrão ao adicionar um novo item; depois de
+   adicionado, o item é independente e não muda mais junto com a seção 3.
 --------------------------------------------------------------------- */
 let items = [];
 let itemCounter = 0;
 
-function calcItemValues(custo, qtd, totalQtd){
-  const ipiInF = num('ipi-in') / 100;
-  const icmsInF = num('icms-in') / 100;
-  const pisCofinsInF = num('pis-cofins-in') / 100;
-  const ipiOutF = num('ipi-out') / 100;
-  const icmsOutF = num('icms-out') / 100;
-  const pisCofinsOutF = num('pis-cofins-out') / 100;
-  const margemF = num('margem-out') / 100;
+function defaultRates(){
+  return {
+    icmsIn: num('icms-in'),
+    pisCofinsIn: num('pis-cofins-in'),
+    ipiIn: num('ipi-in'),
+    icmsOut: num('icms-out'),
+    pisCofinsOut: num('pis-cofins-out'),
+    ipiOut: num('ipi-out'),
+    margem: num('margem-out')
+  };
+}
+
+function calcItemValues(item, totalQtd){
+  const custo = item.custo;
+  const qtd = item.qtd;
+  const ipiInF = (item.ipiIn || 0) / 100;
+  const icmsInF = (item.icmsIn || 0) / 100;
+  const pisCofinsInF = (item.pisCofinsIn || 0) / 100;
+  const ipiOutF = (item.ipiOut || 0) / 100;
+  const icmsOutF = (item.icmsOut || 0) / 100;
+  const pisCofinsOutF = (item.pisCofinsOut || 0) / 100;
+  const margemF = (item.margem || 0) / 100;
 
   const freteTotal = freteAtivo() ? num('frete-valor') : 0;
   const servicoUnit = (freteTotal > 0 && totalQtd > 0) ? freteTotal / totalQtd : 0;
@@ -114,7 +132,7 @@ function recalcAll(){
   let anyWarn = false;
 
   items.forEach(it => {
-    const r = calcItemValues(it.custo, it.qtd, totalQtd);
+    const r = calcItemValues(it, totalQtd);
     if(r.warn) anyWarn = true;
     grandTotal += r.total;
     const qtd = parseFloat(it.qtd) || 0;
@@ -161,20 +179,29 @@ function recalcAll(){
   const warnEl = document.getElementById('pricing-warning');
   if(anyWarn){
     warnEl.style.display = 'block';
-    warnEl.textContent = 'Os percentuais informados resultam em divisor zero ou negativo (ICMS saída + IPI, PIS/COFINS saída ou margem estão altos demais). Ajuste os percentuais — o preço final não pode ser calculado assim.';
+    warnEl.textContent = 'Algum item tem percentuais que resultam em divisor zero ou negativo (ICMS saída + IPI, PIS/COFINS saída ou margem altos demais para aquele item). Ajuste as alíquotas — o preço final desse item não pode ser calculado assim.';
   } else {
     warnEl.style.display = 'none';
   }
 }
 
-function addItem(pn, custo, qtd){
+function pct(n){ return (n === undefined || n === null) ? 0 : n; }
+
+function addItem(pn, custo, qtd, rates){
   pn = pn || '';
   custo = custo || 0;
   qtd = (qtd === undefined || qtd === null) ? 1 : qtd;
+  rates = rates || defaultRates();
 
   itemCounter++;
   const id = 'i' + itemCounter;
-  items.push({id: id, pn: pn, custo: custo, qtd: qtd});
+  const item = {
+    id: id, pn: pn, custo: custo, qtd: qtd,
+    icmsIn: pct(rates.icmsIn), pisCofinsIn: pct(rates.pisCofinsIn), ipiIn: pct(rates.ipiIn),
+    icmsOut: pct(rates.icmsOut), pisCofinsOut: pct(rates.pisCofinsOut), ipiOut: pct(rates.ipiOut),
+    margem: pct(rates.margem)
+  };
+  items.push(item);
 
   const tr = document.createElement('tr');
   tr.setAttribute('data-row-id', id);
@@ -182,6 +209,13 @@ function addItem(pn, custo, qtd){
     '<td><input type="text" class="cell-pn" value="' + escapeHtml(pn) + '" placeholder="PN"></td>' +
     '<td><input type="number" class="cell-custo" step="0.01" value="' + custo + '"></td>' +
     '<td><input type="number" class="cell-qtd" step="1" min="0" value="' + qtd + '"></td>' +
+    '<td><input type="number" class="cell-rate group-start" data-field="icmsIn" step="0.01" value="' + item.icmsIn + '"></td>' +
+    '<td><input type="number" class="cell-rate" data-field="pisCofinsIn" step="0.01" value="' + item.pisCofinsIn + '"></td>' +
+    '<td><input type="number" class="cell-rate group-end" data-field="ipiIn" step="0.01" value="' + item.ipiIn + '"></td>' +
+    '<td><input type="number" class="cell-rate" data-field="icmsOut" step="0.01" value="' + item.icmsOut + '"></td>' +
+    '<td><input type="number" class="cell-rate" data-field="pisCofinsOut" step="0.01" value="' + item.pisCofinsOut + '"></td>' +
+    '<td><input type="number" class="cell-rate group-end" data-field="ipiOut" step="0.01" value="' + item.ipiOut + '"></td>' +
+    '<td><input type="number" class="cell-rate" data-field="margem" step="0.01" value="' + item.margem + '"></td>' +
     '<td class="calc c-cmv">R$ 0,00</td>' +
     '<td class="calc c-preco-final strong">R$ 0,00</td>' +
     '<td class="calc c-total strong">R$ 0,00</td>' +
@@ -202,17 +236,22 @@ function addItem(pn, custo, qtd){
   document.getElementById('taxes-tbody').appendChild(taxRow);
 
   tr.querySelector('.cell-pn').addEventListener('input', (e) => {
-    const it = items.find(i => i.id === id);
-    if(it) it.pn = e.target.value;
+    item.pn = e.target.value;
     taxRow.querySelector('.tax-pn').textContent = e.target.value || '—';
   });
   tr.querySelector('.cell-custo').addEventListener('input', (e) => {
-    const it = items.find(i => i.id === id);
-    if(it){ it.custo = parseFloat(e.target.value) || 0; recalcAll(); }
+    item.custo = parseFloat(e.target.value) || 0;
+    recalcAll();
   });
   tr.querySelector('.cell-qtd').addEventListener('input', (e) => {
-    const it = items.find(i => i.id === id);
-    if(it){ it.qtd = parseFloat(e.target.value) || 0; recalcAll(); }
+    item.qtd = parseFloat(e.target.value) || 0;
+    recalcAll();
+  });
+  tr.querySelectorAll('.cell-rate').forEach(input => {
+    input.addEventListener('input', (e) => {
+      item[e.target.dataset.field] = parseFloat(e.target.value) || 0;
+      recalcAll();
+    });
   });
   tr.querySelector('.row-remove').addEventListener('click', () => {
     items = items.filter(i => i.id !== id);
@@ -225,7 +264,7 @@ function addItem(pn, custo, qtd){
   return id;
 }
 
-document.getElementById('add-item').addEventListener('click', () => addItem('', 0, 1));
+document.getElementById('add-item').addEventListener('click', () => addItem('', 0, 1, defaultRates()));
 
 const rateIds = ['icms-in','pis-cofins-in','ipi-in','ipi-out','icms-out','pis-cofins-out','iss-out','margem-out','frete-valor'];
 rateIds.forEach(id => document.getElementById(id).addEventListener('input', recalcAll));
@@ -241,7 +280,7 @@ document.getElementById('frete-toggle').addEventListener('click', () => {
 });
 
 /* linha inicial */
-addItem('', 0, 1);
+addItem('', 0, 1, defaultRates());
 
 /* ---------------------------------------------------------------------
    EXTRAÇÃO DO PDF
@@ -379,7 +418,7 @@ document.getElementById('gerar-proposta').addEventListener('click', () => {
   const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
   let grandTotal = 0;
   const rowsHtml = items.map((it, idx) => {
-    const r = calcItemValues(it.custo, it.qtd, totalQtd);
+    const r = calcItemValues(it, totalQtd);
     grandTotal += r.total;
     return '<tr>' +
       '<td>' + (idx + 1) + '</td>' +
