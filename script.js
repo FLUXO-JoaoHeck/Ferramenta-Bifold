@@ -64,10 +64,10 @@ let itemCounter = 0;
 function calcItemValues(custo, qtd, totalQtd){
   const ipiInF = num('ipi-in') / 100;
   const icmsInF = num('icms-in') / 100;
-  const pisCofinsInF = (num('pis-in') + num('cofins-in')) / 100;
+  const pisCofinsInF = num('pis-cofins-in') / 100;
   const ipiOutF = num('ipi-out') / 100;
   const icmsOutF = num('icms-out') / 100;
-  const pisCofinsOutF = (num('pis-out') + num('cofins-out')) / 100;
+  const pisCofinsOutF = num('pis-cofins-out') / 100;
   const margemF = num('margem-out') / 100;
 
   const freteTotal = freteAtivo() ? num('frete-valor') : 0;
@@ -81,25 +81,22 @@ function calcItemValues(custo, qtd, totalQtd){
 
   const cmv = servicoUnit + (custo - ipiEntradaValor - icmsEntradaValor - pisCofinsEntradaValor);
 
-  /* impostos de saída — usa o IPI de saída, que pode ter alíquota diferente da entrada */
-  const denomIcms = 1 - icmsOutF - (icmsOutF * ipiOutF);
-  const denomPisCofins = 1 - pisCofinsOutF;
+  /* impostos de saída — um único divisor que já embute ICMS, o efeito do
+     IPI sobre o ICMS e PIS/COFINS de saída */
+  const denomSaida = 1 - icmsOutF - (icmsOutF * ipiOutF) - pisCofinsOutF;
   const denomMargem = 1 - margemF;
 
   let precoFinal = 0, impSaidaValor = 0, warn = false;
   let icmsSaidaValor = 0, pisCofinsSaidaValor = 0, ipiSaidaValor = 0;
-  if(denomMargem <= 0 || denomIcms <= 0 || denomPisCofins <= 0){
+  if(denomMargem <= 0 || denomSaida <= 0){
     warn = true;
   } else {
-    /* impostos de saída — mesmo caminho da fórmula, decomposto passo a passo */
     const recLiq = cmv / denomMargem;
-    const precoAposIcms = recLiq / denomIcms;
-    const precoAposPisCofins = precoAposIcms / denomPisCofins;
-    precoFinal = precoAposPisCofins * (1 + ipiOutF);
+    precoFinal = recLiq / denomSaida;
 
-    icmsSaidaValor = precoAposIcms - recLiq;
-    pisCofinsSaidaValor = precoAposPisCofins - precoAposIcms;
-    ipiSaidaValor = precoFinal - precoAposPisCofins;
+    icmsSaidaValor = precoFinal * icmsOutF;
+    ipiSaidaValor = precoFinal * icmsOutF * ipiOutF;
+    pisCofinsSaidaValor = precoFinal * pisCofinsOutF;
     impSaidaValor = precoFinal - recLiq;
   }
   const total = precoFinal * (parseFloat(qtd) || 0);
@@ -230,7 +227,7 @@ function addItem(pn, custo, qtd){
 
 document.getElementById('add-item').addEventListener('click', () => addItem('', 0, 1));
 
-const rateIds = ['icms-in','pis-in','cofins-in','ipi-in','ipi-out','icms-out','pis-out','cofins-out','iss-out','margem-out','frete-valor'];
+const rateIds = ['icms-in','pis-cofins-in','ipi-in','ipi-out','icms-out','pis-cofins-out','iss-out','margem-out','frete-valor'];
 rateIds.forEach(id => document.getElementById(id).addEventListener('input', recalcAll));
 
 document.getElementById('frete-toggle').addEventListener('click', () => {
