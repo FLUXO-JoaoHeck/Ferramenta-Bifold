@@ -102,37 +102,37 @@
       <div class="ledger-group-title">Impostos de entrada — para chegar ao CMV</div>
       <div class="ledger-row">
         <label>ICMS (%)</label>
-        <input id="icms-in" type="number" step="0.01" value="0">
+        <input id="icms-in" type="number" step="0.5" value="0">
       </div>
       <div class="ledger-row">
         <label>PIS (%)</label>
-        <input id="pis-in" type="number" step="0.01" value="0">
+        <input id="pis-in" type="number" step="0.25" value="0">
       </div>
       <div class="ledger-row">
         <label>COFINS (%)</label>
-        <input id="cofins-in" type="number" step="0.01" value="0">
+        <input id="cofins-in" type="number" step="0.25" value="0">
       </div>
       <div class="ledger-row">
         <label>IPI de entrada (%)</label>
-        <input id="ipi-in" type="number" step="0.01" value="0">
+        <input id="ipi-in" type="number" step="0.25" value="0">
       </div>
 
       <div class="ledger-group-title">Impostos de saída e margem desejada</div>
       <div class="ledger-row">
         <label>IPI de saída (%)</label>
-        <input id="ipi-out" type="number" step="0.01" value="0">
+        <input id="ipi-out" type="number" step="0.25" value="0">
       </div>
       <div class="ledger-row">
         <label>ICMS saída (%)</label>
-        <input id="icms-out" type="number" step="0.01" value="0">
+        <input id="icms-out" type="number" step="0.25" value="0">
       </div>
       <div class="ledger-row">
         <label>PIS saída (%)</label>
-        <input id="pis-out" type="number" step="0.01" value="0">
+        <input id="pis-out" type="number" step="0.25" value="0">
       </div>
       <div class="ledger-row">
         <label>COFINS saída (%)</label>
-        <input id="cofins-out" type="number" step="0.01" value="0">
+        <input id="cofins-out" type="number" step="0.25" value="0">
       </div>
       <div class="ledger-row">
         <label>ISS saída (%) — se serviço</label>
@@ -140,14 +140,14 @@
       </div>
       <div class="ledger-row">
         <label>Margem de saída desejada (%)</label>
-        <input id="margem-out" type="number" step="0.01" value="0">
+        <input id="margem-out" type="number" step="0.25" value="0">
       </div>
     </div>
 
     <button id="frete-toggle" type="button" class="secondary" style="margin-top:16px;">+ Considerar frete no preço</button>
     <div id="frete-box" class="hidden">
       <label>Valor total do frete (R$) — entra como "Serviço" no CMV
-        <input id="frete-valor" type="number" step="0.01" value="0">
+        <input id="frete-valor" type="number" step="0.25" value="0">
       </label>
     </div>
 
