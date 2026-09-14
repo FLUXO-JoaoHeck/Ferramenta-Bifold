@@ -45,19 +45,8 @@ function freteAtivo(){
   return !document.getElementById('frete-box').classList.contains('hidden');
 }
 
-/* logo opcional: guarda como dataURL para usar na capa */
-let logoDataUrl = null;
-document.getElementById('f-logo').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if(!file) { logoDataUrl = null; return; }
-  const reader = new FileReader();
-  reader.onload = () => { logoDataUrl = reader.result; };
-  reader.readAsDataURL(file);
-});
-
 /* ---------------------------------------------------------------------
-   ITENS DA PROPOSTA
-   Todos os itens usam as mesmas alíquotas, definidas na seção 3.
+   ITENS — todos usam as mesmas alíquotas, definidas na seção 2
 --------------------------------------------------------------------- */
 let items = [];
 let itemCounter = 0;
@@ -108,6 +97,7 @@ function recalcAll(){
     const r = calcItemValues(it, totalQtd);
     if(r.warn) anyWarn = true;
     grandTotal += r.total;
+    it._calc = r;
 
     const row = document.querySelector('tr[data-row-id="' + it.id + '"]');
     if(row){
@@ -126,22 +116,28 @@ function recalcAll(){
   } else {
     warnEl.style.display = 'none';
   }
+
+  renderOutputTable(grandTotal);
 }
 
-function addItem(pn, custo, qtd){
+function addItem(pn, descricao, ncm, custo, qtd){
   pn = pn || '';
+  descricao = descricao || '';
+  ncm = ncm || '';
   custo = custo || 0;
   qtd = (qtd === undefined || qtd === null) ? 1 : qtd;
 
   itemCounter++;
   const id = 'i' + itemCounter;
-  const item = {id: id, pn: pn, custo: custo, qtd: qtd};
+  const item = {id: id, pn: pn, descricao: descricao, ncm: ncm, custo: custo, qtd: qtd};
   items.push(item);
 
   const tr = document.createElement('tr');
   tr.setAttribute('data-row-id', id);
   tr.innerHTML =
     '<td><input type="text" class="cell-pn" value="' + escapeHtml(pn) + '" placeholder="PN"></td>' +
+    '<td><input type="text" class="cell-descricao" value="' + escapeHtml(descricao) + '" placeholder="Descrição"></td>' +
+    '<td><input type="text" class="cell-ncm" value="' + escapeHtml(ncm) + '" placeholder="0000.00.00"></td>' +
     '<td><input type="number" class="cell-custo" step="0.01" value="' + custo + '"></td>' +
     '<td><input type="number" class="cell-qtd" step="1" min="0" value="' + qtd + '"></td>' +
     '<td class="calc c-cmv">R$ 0,00</td>' +
@@ -151,9 +147,9 @@ function addItem(pn, custo, qtd){
 
   document.getElementById('items-tbody').appendChild(tr);
 
-  tr.querySelector('.cell-pn').addEventListener('input', (e) => {
-    item.pn = e.target.value;
-  });
+  tr.querySelector('.cell-pn').addEventListener('input', (e) => { item.pn = e.target.value; renderOutputTable(); });
+  tr.querySelector('.cell-descricao').addEventListener('input', (e) => { item.descricao = e.target.value; renderOutputTable(); });
+  tr.querySelector('.cell-ncm').addEventListener('input', (e) => { item.ncm = e.target.value; renderOutputTable(); });
   tr.querySelector('.cell-custo').addEventListener('input', (e) => {
     item.custo = parseFloat(e.target.value) || 0;
     recalcAll();
@@ -172,7 +168,7 @@ function addItem(pn, custo, qtd){
   return id;
 }
 
-document.getElementById('add-item').addEventListener('click', () => addItem('', 0, 1));
+document.getElementById('add-item').addEventListener('click', () => addItem('', '', '', 0, 1));
 
 const rateIds = ['icms-in','pis-cofins-in','ipi-in','ipi-out','icms-out','pis-cofins-out','iss-out','margem-out','frete-valor'];
 rateIds.forEach(id => document.getElementById(id).addEventListener('input', recalcAll));
@@ -188,20 +184,67 @@ document.getElementById('frete-toggle').addEventListener('click', () => {
 });
 
 /* linha inicial */
-addItem('', 0, 1);
+addItem('', '', '', 0, 1);
 
 /* ---------------------------------------------------------------------
-   EXTRAÇÃO DO PDF
-   O layout do fornecedor é fixo, mas os padrões abaixo são genéricos
-   (busca por palavras-chave comuns + valores em R$). Ajuste os regex em
+   TABELA DE SAÍDA — mesma estrutura do modelo de referência:
+   Item | Modelo (PN + descrição) | Qtd | NCM | Preço Unitário | Preço Total
+--------------------------------------------------------------------- */
+function renderOutputTable(grandTotalArg){
+  const tbody = document.getElementById('output-tbody');
+  const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
+  let grandTotal = 0;
+
+  const rowsHtml = items.map((it, idx) => {
+    const r = it._calc || calcItemValues(it, totalQtd);
+    grandTotal += r.total;
+    return '<tr>' +
+      '<td>' + (idx + 1) + '</td>' +
+      '<td><span class="out-pn">' + escapeHtml(it.pn || '—') + '</span>' +
+        (it.descricao ? '<span class="out-desc">' + escapeHtml(it.descricao) + '</span>' : '') +
+      '</td>' +
+      '<td class="center">' + (it.qtd || 0) + '</td>' +
+      '<td class="center">' + escapeHtml(it.ncm || '—') + '</td>' +
+      '<td class="num">' + fmtBRL(r.precoFinal) + '</td>' +
+      '<td class="num">' + fmtBRL(r.total) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  tbody.innerHTML = rowsHtml || '<tr><td colspan="6">Nenhum item adicionado.</td></tr>';
+  document.getElementById('output-total').innerHTML = '<strong>' + fmtBRL(grandTotalArg !== undefined ? grandTotalArg : grandTotal) + '</strong>';
+}
+
+/* ---------------------------------------------------------------------
+   COPIAR TABELA — seleciona e copia mantendo a formatação (cola no Word)
+--------------------------------------------------------------------- */
+document.getElementById('copy-table').addEventListener('click', () => {
+  const statusEl = document.getElementById('copy-status');
+  const table = document.getElementById('output-table');
+  try{
+    const range = document.createRange();
+    range.selectNode(table);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const ok = document.execCommand('copy');
+    sel.removeAllRanges();
+    statusEl.textContent = ok ? 'Copiado! Cole com Ctrl+V no Word.' : 'Não copiou automaticamente — selecione a tabela manualmente e use Ctrl+C.';
+  } catch(err){
+    statusEl.textContent = 'Não copiou automaticamente — selecione a tabela manualmente e use Ctrl+C.';
+  }
+  setTimeout(() => { statusEl.textContent = ''; }, 4000);
+});
+
+/* ---------------------------------------------------------------------
+   EXTRAÇÃO DO PDF (opcional)
+   O layout do fornecedor pode variar, então isso é só um ponto de
+   partida — confira e ajuste os campos manualmente. Ajuste os regex em
    PATTERNS conforme o modelo real do seu fornecedor para aumentar a
-   precisão — a extração é sempre um ponto de partida editável, nunca
-   a fonte final dos dados.
+   precisão.
 --------------------------------------------------------------------- */
 const PATTERNS = {
-  fornecedor: /(?:raz[aã]o social|fornecedor)\s*[:\-]?\s*(.+)/i,
-  produto: /(?:descri[cç][aã]o|produto|item)\s*[:\-]?\s*(.+)/i,
-  precoCompra: /(?:valor unit[aá]rio|pre[cç]o unit[aá]rio|valor total|pre[cç]o)\s*[:\-]?\s*R?\$?\s*([\d.,]+)/i
+  precoCompra: /(?:valor unit[aá]rio|pre[cç]o unit[aá]rio|valor total|pre[cç]o)\s*[:\-]?\s*R?\$?\s*([\d.,]+)/i,
+  ncm: /NCM\s*[:\-]?\s*(\d{4}\.?\d{2}\.?\d{2})/i
 };
 
 function parseCurrencyToNumber(str){
@@ -234,136 +277,36 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
       fullText += content.items.map(it => it.str).join(' ') + '\n';
     }
 
-    const fMatch = fullText.match(PATTERNS.fornecedor);
-    const pMatch = fullText.match(PATTERNS.produto);
     const cMatch = fullText.match(PATTERNS.precoCompra);
+    const nMatch = fullText.match(PATTERNS.ncm);
+    let found = [];
 
-    if(fMatch) document.getElementById('f-fornecedor').value = fMatch[1].trim().slice(0,80);
-    if(pMatch) document.getElementById('f-produto').value = pMatch[1].trim().slice(0,80);
     if(cMatch && items.length){
       const val = parseCurrencyToNumber(cMatch[1]);
       if(val !== null){
         items[0].custo = val;
         const row = document.querySelector('tr[data-row-id="' + items[0].id + '"]');
         if(row) row.querySelector('.cell-custo').value = val.toFixed(2);
-        recalcAll();
+        found.push('preço do 1º item');
       }
     }
+    if(nMatch && items.length){
+      items[0].ncm = nMatch[1];
+      const row = document.querySelector('tr[data-row-id="' + items[0].id + '"]');
+      if(row) row.querySelector('.cell-ncm').value = nMatch[1];
+      found.push('NCM do 1º item');
+    }
+    recalcAll();
 
-    const found = [fMatch && 'fornecedor', pMatch && 'produto', cMatch && 'preço do 1º item'].filter(Boolean);
     if(found.length){
       statusEl.className = 'ok';
-      statusEl.textContent = 'Extraído automaticamente: ' + found.join(', ') + '. Confira os campos abaixo antes de prosseguir.';
+      statusEl.textContent = 'Extraído automaticamente: ' + found.join(', ') + '. Confira os campos antes de prosseguir.';
     } else {
       statusEl.className = 'err';
-      statusEl.textContent = 'Não foi possível reconhecer os campos automaticamente neste layout. Preencha manualmente — ajuste os padrões em PATTERNS no código para este modelo de PDF.';
+      statusEl.textContent = 'Não foi possível reconhecer os campos automaticamente neste layout. Preencha manualmente.';
     }
   } catch(err){
     statusEl.className = 'err';
     statusEl.textContent = 'Erro ao ler o PDF: ' + err.message;
   }
-});
-
-/* ---------------------------------------------------------------------
-   GERAÇÃO DA PROPOSTA — via impressão nativa do navegador
---------------------------------------------------------------------- */
-document.getElementById('gerar-proposta').addEventListener('click', () => {
-  const empresa = document.getElementById('f-empresa').value || 'Sua Empresa';
-  const responsavel = document.getElementById('f-responsavel').value || '—';
-  const cargo = document.getElementById('f-cargo').value || '';
-  const email = document.getElementById('f-email').value || '';
-  const telefone = document.getElementById('f-telefone').value || '';
-  const endereco = document.getElementById('f-endereco').value || '';
-  const cliente = document.getElementById('f-cliente').value || '—';
-  const codigoProposta = document.getElementById('f-codigo-proposta').value || '';
-  const oportunidade = document.getElementById('f-oportunidade').value || '—';
-  const produto = document.getElementById('f-produto').value || 'Fornecimento';
-  const sobreEmpresa = document.getElementById('f-sobre-empresa').value || '';
-  const obsBase = document.getElementById('f-obs').value || '';
-  const dataInput = document.getElementById('f-data').value;
-  const dataFmt = dataInput ? new Date(dataInput + 'T00:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-
-  /* capa */
-  document.getElementById('p-codigo-sub').textContent = codigoProposta;
-  document.getElementById('p-titulo-projeto').textContent = produto;
-  document.getElementById('p-data-cover').textContent = dataFmt;
-  document.getElementById('p-responsavel').textContent = responsavel;
-  document.getElementById('p-cargo').textContent = cargo;
-  document.getElementById('p-email').textContent = email;
-  document.getElementById('p-telefone').textContent = telefone;
-  document.getElementById('p-endereco').textContent = endereco;
-  document.getElementById('p-cliente-cover').textContent = cliente;
-  document.getElementById('p-oportunidade-cover').textContent = oportunidade;
-
-  const logoWrap = document.getElementById('p-logo-wrap');
-  if(logoDataUrl){
-    logoWrap.innerHTML = '<img class="logo-img" src="' + logoDataUrl + '" alt="Logo">';
-  } else {
-    logoWrap.innerHTML = '<div class="logo-placeholder">' + escapeHtml(empresa) + '</div>';
-  }
-
-  /* cabeçalhos das páginas internas */
-  ['p-header-empresa-1','p-header-empresa-2'].forEach(id => document.getElementById(id).textContent = empresa);
-  ['p-header-endereco-1','p-header-endereco-2'].forEach(id => document.getElementById(id).textContent = endereco);
-  const footerLabel = (codigoProposta ? codigoProposta + ' — ' : '') + produto;
-  document.getElementById('p-footer-titulo-1').textContent = footerLabel;
-  document.getElementById('p-footer-titulo-2').textContent = footerLabel;
-
-  /* revisão / apresentação / objetivo */
-  document.getElementById('p-rev-data').textContent = dataFmt;
-  const apresentacaoBlock = document.getElementById('p-apresentacao-block');
-  if(sobreEmpresa.trim()){
-    apresentacaoBlock.classList.remove('hidden');
-    document.getElementById('p-apresentacao-text').textContent = sobreEmpresa;
-  } else {
-    apresentacaoBlock.classList.add('hidden');
-  }
-  document.getElementById('p-objetivo-text').textContent =
-    'Esta proposta tem por objetivo apresentar as condições comerciais para o ' +
-    produto.charAt(0).toLowerCase() + produto.slice(1) + ' para ' + cliente + '.';
-
-  /* escopo de fornecimento */
-  const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
-  let grandTotal = 0;
-  const rowsHtml = items.map((it, idx) => {
-    const r = calcItemValues(it, totalQtd);
-    grandTotal += r.total;
-    return '<tr>' +
-      '<td>' + (idx + 1) + '</td>' +
-      '<td>' + escapeHtml(it.pn || '—') + '</td>' +
-      '<td style="text-align:center">' + (it.qtd || 0) + '</td>' +
-      '<td class="num">' + fmtBRL(r.precoFinal) + '</td>' +
-      '<td class="num">' + fmtBRL(r.total) + '</td>' +
-    '</tr>';
-  }).join('');
-  document.getElementById('p-items-tbody').innerHTML = rowsHtml || '<tr><td colspan="5">Nenhum item adicionado.</td></tr>';
-  document.getElementById('p-total-geral').textContent = fmtBRL(grandTotal);
-
-  /* notas */
-  let obsFinal = obsBase;
-  if(freteAtivo() && num('frete-valor') > 0){
-    const freteNote = 'Frete de ' + fmtBRL(num('frete-valor')) + ' considerado na composição do preço.';
-    obsFinal = obsFinal ? (obsFinal + '\n\n' + freteNote) : freteNote;
-  }
-  const notasBlock = document.getElementById('p-notas-block');
-  if(obsFinal.trim()){
-    notasBlock.classList.remove('hidden');
-    document.getElementById('p-obs').textContent = obsFinal;
-  } else {
-    notasBlock.classList.add('hidden');
-  }
-
-  /* contatos */
-  const contatoLinhas = [
-    empresa + ' agradece a oportunidade e coloca-se à disposição para quaisquer esclarecimentos adicionais necessários.',
-    '',
-    'Atenciosamente,',
-    '',
-    responsavel,
-    [cargo, empresa].filter(Boolean).join(' — '),
-    [telefone, email].filter(Boolean).join(' · ')
-  ].filter(line => line !== undefined);
-  document.getElementById('p-contatos-text').textContent = contatoLinhas.join('\n');
-
-  window.print();
 });
