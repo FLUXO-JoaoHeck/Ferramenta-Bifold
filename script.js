@@ -211,26 +211,76 @@ function renderOutputTable(grandTotalArg){
   }).join('');
 
   tbody.innerHTML = rowsHtml || '<tr><td colspan="6">Nenhum item adicionado.</td></tr>';
+
+  const freteRow = document.getElementById('output-frete-row');
+  if(freteAtivo() && num('frete-valor') > 0){
+    freteRow.classList.remove('hidden');
+    freteRow.querySelector('#output-frete-valor').innerHTML = fmtBRL(num('frete-valor'));
+  } else {
+    freteRow.classList.add('hidden');
+  }
   document.getElementById('output-total').innerHTML = '<strong>' + fmtBRL(grandTotalArg !== undefined ? grandTotalArg : grandTotal) + '</strong>';
+
+  renderOutputNotes();
 }
+
+function fmtPct(n){
+  return (n || 0).toLocaleString('pt-BR', {maximumFractionDigits: 2}) + '%';
+}
+
+/* bullets de impostos (alíquotas de saída), estado do ICMS e bloco Zona Franca */
+function renderOutputNotes(){
+  const ncms = [];
+  items.forEach(it => {
+    const n = (it.ncm || '').trim();
+    if(n && ncms.indexOf(n) === -1) ncms.push(n);
+  });
+
+  const ipiMode = document.getElementById('opt-ipi').value;
+  const lines = [];
+  if(ncms.length) lines.push('NCM: ' + ncms.join(', '));
+  lines.push('PIS/COFINS: ' + fmtPct(num('pis-cofins-out')) + ' incluso');
+  lines.push('ICMS: ' + fmtPct(num('icms-out')) + ' incluso');
+  lines.push('IPI: ' + fmtPct(num('ipi-out')) + ' ' + ipiMode);
+
+  document.getElementById('output-tax-list').innerHTML =
+    lines.map(l => '<li>' + escapeHtml(l) + '</li>').join('');
+
+  const estado = document.getElementById('opt-estado').value.trim();
+  const estadoItem = document.getElementById('output-estado-item');
+  if(estado){
+    estadoItem.textContent = 'Estamos considerando que o cliente é contribuinte de ICMS no estado do ' + estado + ';';
+    estadoItem.classList.remove('hidden');
+  } else {
+    estadoItem.classList.add('hidden');
+  }
+
+  document.getElementById('output-zf').classList.toggle('hidden', !document.getElementById('opt-zf').checked);
+}
+
+['opt-estado', 'opt-ipi', 'opt-zf'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', renderOutputNotes);
+  el.addEventListener('change', renderOutputNotes);
+});
 
 /* ---------------------------------------------------------------------
    COPIAR TABELA — seleciona e copia mantendo a formatação (cola no Word)
 --------------------------------------------------------------------- */
 document.getElementById('copy-table').addEventListener('click', () => {
   const statusEl = document.getElementById('copy-status');
-  const table = document.getElementById('output-table');
+  const wrap = document.getElementById('output-wrap');
   try{
     const range = document.createRange();
-    range.selectNode(table);
+    range.selectNodeContents(wrap);
     const sel = window.getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
     const ok = document.execCommand('copy');
     sel.removeAllRanges();
-    statusEl.textContent = ok ? 'Copiado! Cole com Ctrl+V no Word.' : 'Não copiou automaticamente — selecione a tabela manualmente e use Ctrl+C.';
+    statusEl.textContent = ok ? 'Copiado! Cole com Ctrl+V no Word.' : 'Não copiou automaticamente — selecione o conteúdo manualmente e use Ctrl+C.';
   } catch(err){
-    statusEl.textContent = 'Não copiou automaticamente — selecione a tabela manualmente e use Ctrl+C.';
+    statusEl.textContent = 'Não copiou automaticamente — selecione o conteúdo manualmente e use Ctrl+C.';
   }
   setTimeout(() => { statusEl.textContent = ''; }, 4000);
 });
