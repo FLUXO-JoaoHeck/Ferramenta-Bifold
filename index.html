@@ -145,33 +145,42 @@
 
     <div id="output-wrap">
       <table id="output-table">
+        <colgroup>
+          <col style="width:7%">
+          <col style="width:34.5%">
+          <col style="width:6.5%">
+          <col style="width:13%">
+          <col style="width:19.75%">
+          <col style="width:19.75%">
+        </colgroup>
         <thead>
           <tr>
-            <th>Item</th>
-            <th>Modelo</th>
-            <th style="text-align:center">Qtd</th>
-            <th style="text-align:center">NCM</th>
-            <th style="text-align:right">Preço Unitário</th>
-            <th style="text-align:right">Preço Total</th>
+            <th>ITEM</th>
+            <th>MODELO</th>
+            <th>QTD</th>
+            <th>NCM</th>
+            <th>Preço Unitário</th>
+            <th>Preço Total</th>
           </tr>
         </thead>
         <tbody id="output-tbody"></tbody>
         <tfoot>
           <tr id="output-frete-row" class="hidden">
-            <td colspan="5">Frete (já rateado proporcionalmente entre os itens acima)</td>
-            <td id="output-frete-valor" style="text-align:right">R$ 0,00</td>
+            <td colspan="5" class="left">Frete (já rateado proporcionalmente entre os itens acima)</td>
+            <td id="output-frete-valor">R$ 0,00</td>
           </tr>
           <tr>
-            <td colspan="5"><strong>VALOR TOTAL</strong></td>
-            <td id="output-total" style="text-align:right"><strong>R$ 0,00</strong></td>
+            <td colspan="5" class="left">VALOR TOTAL</td>
+            <td id="output-total">R$ 0,00</td>
           </tr>
         </tfoot>
       </table>
 
       <ul id="output-tax-list"></ul>
 
+      <p id="output-obs-title">Observações:</p>
+
       <div id="output-zf" class="hidden">
-        <p>Observações:</p>
         <p>Consideramos produtos destinados a Zona Franca de Manaus – Refinaria de Manaus – REMAN. Dessa forma:</p>
         <p class="zf-indent">PIS/COFINS: Alíquotas reduzidas a zero conforme art. 2º da lei 10996/2004;</p>
         <p class="zf-indent">IPI: Isenção de IPI conforme art. 81, incisos I, II, III do decreto nº 7.212 de 15 de junho de 2010 (RIPI);</p>

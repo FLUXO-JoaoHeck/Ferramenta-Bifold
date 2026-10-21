@@ -200,13 +200,13 @@ function renderOutputTable(grandTotalArg){
     grandTotal += r.total;
     return '<tr>' +
       '<td>' + (idx + 1) + '</td>' +
-      '<td><span class="out-pn">' + escapeHtml(it.pn || '—') + '</span>' +
-        (it.descricao ? '<span class="out-desc">' + escapeHtml(it.descricao) + '</span>' : '') +
+      '<td class="left"><strong>' + escapeHtml(it.pn || '—') + '</strong>' +
+        (it.descricao ? '<br>' + escapeHtml(it.descricao) : '') +
       '</td>' +
-      '<td class="center">' + (it.qtd || 0) + '</td>' +
-      '<td class="center">' + escapeHtml(it.ncm || '—') + '</td>' +
-      '<td class="num">' + fmtBRL(r.precoFinal) + '</td>' +
-      '<td class="num">' + fmtBRL(r.total) + '</td>' +
+      '<td>' + (it.qtd || 0) + '</td>' +
+      '<td>' + escapeHtml(it.ncm || '—') + '</td>' +
+      '<td>' + fmtBRL(r.precoFinal) + '</td>' +
+      '<td>' + fmtBRL(r.total) + '</td>' +
     '</tr>';
   }).join('');
 
@@ -219,7 +219,7 @@ function renderOutputTable(grandTotalArg){
   } else {
     freteRow.classList.add('hidden');
   }
-  document.getElementById('output-total').innerHTML = '<strong>' + fmtBRL(grandTotalArg !== undefined ? grandTotalArg : grandTotal) + '</strong>';
+  document.getElementById('output-total').textContent = fmtBRL(grandTotalArg !== undefined ? grandTotalArg : grandTotal);
 
   renderOutputNotes();
 }
@@ -237,14 +237,16 @@ function renderOutputNotes(){
   });
 
   const ipiMode = document.getElementById('opt-ipi').value;
-  const lines = [];
-  if(ncms.length) lines.push('NCM: ' + ncms.join(', '));
-  lines.push('PIS/COFINS: ' + fmtPct(num('pis-cofins-out')) + ' incluso');
-  lines.push('ICMS: ' + fmtPct(num('icms-out')) + ' incluso');
-  lines.push('IPI: ' + fmtPct(num('ipi-out')) + ' ' + ipiMode);
+  const taxLines = [
+    'PIS/COFINS: ' + fmtPct(num('pis-cofins-out')) + ' incluso',
+    'ICMS: ' + fmtPct(num('icms-out')) + ' incluso',
+    'IPI: ' + fmtPct(num('ipi-out')) + ' ' + ipiMode
+  ];
+  const taxHtml = taxLines.map(l => '<li>' + escapeHtml(l) + '</li>').join('');
 
-  document.getElementById('output-tax-list').innerHTML =
-    lines.map(l => '<li>' + escapeHtml(l) + '</li>').join('');
+  document.getElementById('output-tax-list').innerHTML = ncms.length
+    ? '<li>NCM: ' + escapeHtml(ncms.join(', ')) + '<ul>' + taxHtml + '</ul></li>'
+    : taxHtml;
 
   const estado = document.getElementById('opt-estado').value.trim();
   const estadoItem = document.getElementById('output-estado-item');
