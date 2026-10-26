@@ -11,7 +11,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -39,7 +38,7 @@
   </section>
 
   <section id="options-step">
-    <h2><span class="num">2</span> Opções da tabela</h2>
+    <h2><span class="num">2</span> Receita Bruta e Petronect</h2>
     <p class="hint">Ajustam a tabela e o texto gerados abaixo; não são copiadas.</p>
     <div class="out-options">
       <label>Preço exibido
@@ -92,10 +91,6 @@
         </thead>
         <tbody id="output-tbody"></tbody>
         <tfoot>
-          <tr id="output-frete-row" class="hidden">
-            <td colspan="5" class="left">Frete (já rateado proporcionalmente entre os itens acima)</td>
-            <td id="output-frete-valor">R$ 0,00</td>
-          </tr>
           <tr>
             <td colspan="5" class="left">VALOR TOTAL</td>
             <td id="output-total">R$ 0,00</td>
@@ -121,28 +116,6 @@
         <li>Os preços indicados nesta proposta/contrato são líquidos da CBS e do IBS. Os valores correspondentes a esses tributos serão destacados e acrescidos ao preço líquido, de acordo com as alíquotas e demais regras tributárias efetivamente aplicáveis à operação e vigentes na data do respectivo faturamento. Eventuais alterações das alíquotas, bases de cálculo ou demais critérios legais de apuração da CBS e do IBS serão refletidas nos valores dos tributos acrescidos ao preço líquido, sem alteração da margem comercial considerada na formação deste.</li>
         <li>Esta proposta contempla a aquisição da totalidade dos itens ofertados. Quantidades diferentes estão sujeitas a alterações nos termos técnicos/comerciais.</li>
       </ul>
-    </div>
-  </section>
-
-  <section id="pdf-extract-step" class="wide">
-    <h2><span class="num">4</span> Extrair PN e descrição do PDF</h2>
-    <p class="hint">Selecione um PDF. A ferramenta extrai somente o PN e as especificações técnicas e monta uma tabela para copiar para o Word.</p>
-    <div class="dropzone pdf-dropzone">
-      <input type="file" id="pdf-input" accept="application/pdf,.pdf">
-      <button type="button" id="extract-pdf" class="secondary">Extrair texto</button>
-    </div>
-    <div id="pdf-status" role="status" aria-live="polite"></div>
-    <div id="pdf-editor" class="hidden">
-      <div class="proposal-table-wrapper" id="proposal-table-wrapper">
-        <table id="proposal-table" class="proposal-table">
-          <thead><tr><th class="item-column">ITEM</th><th>DESCRIÇÃO</th><th class="qty-column">QTD</th></tr></thead>
-          <tbody id="proposal-table-body"></tbody>
-        </table>
-      </div>
-      <div class="pdf-actions">
-        <button type="button" id="copy-pdf-text">Copiar tabela</button>
-        <span id="pdf-copy-status" aria-live="polite"></span>
-      </div>
     </div>
   </section>
 </div>

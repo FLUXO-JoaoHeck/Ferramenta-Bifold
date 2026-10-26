@@ -260,24 +260,3 @@ button.secondary:hover{background:var(--teal-soft);}
 @media (max-width: 560px){
   .out-options{grid-template-columns:1fr;}
 }
-
-
-/* ---------------------------------------------------------------------
-   EXTRAÇÃO DE PDF — tabela de PN e especificações para copiar ao Word
---------------------------------------------------------------------- */
-#pdf-status{margin-top:10px;font-size:13px;color:var(--ink-soft);}
-#pdf-status.ok{color:var(--teal);}
-#pdf-status.err{color:#e06c60;}
-.pdf-dropzone{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
-.proposal-table-wrapper{margin-top:16px;background:#fff;color:#404040;padding:16px;overflow-x:auto;border:1px solid #d0d0d0;border-radius:4px;}
-.proposal-table{width:100%;border-collapse:collapse;table-layout:fixed;font-family:"Open Sans",Arial,sans-serif;font-size:10pt;line-height:1.3;color:#404040;}
-.proposal-table th,.proposal-table td{padding:5pt 7pt;border-top:.5pt solid #a6a6a6;border-bottom:.5pt solid #a6a6a6;vertical-align:top;}
-.proposal-table th{font-size:8pt;font-weight:700;text-align:left;}
-.proposal-table .item-column{width:7%;text-align:center;}
-.proposal-table .qty-column{width:10%;text-align:center;font-weight:700;}
-.proposal-table .description-column strong{display:block;font-weight:700;color:#202020;}
-.proposal-table .specification-list{margin:12pt 0 0;padding-left:22pt;line-height:1.35;}
-.proposal-table .specification-list li{padding-left:5pt;margin:0 0 2pt;}
-.pdf-actions{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap;}
-#pdf-copy-status{font-size:12.5px;color:var(--teal);}
-@media(max-width:560px){.proposal-table{min-width:520px;}}
