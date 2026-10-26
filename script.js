@@ -1,7 +1,3 @@
-if(typeof pdfjsLib !== 'undefined'){
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-}
-
 /* ---------------------------------------------------------------------
    MODO CLARO / ESCURO
 --------------------------------------------------------------------- */
@@ -13,13 +9,8 @@ if(typeof pdfjsLib !== 'undefined'){
 
   function apply(theme){
     root.setAttribute('data-theme', theme);
-    if(theme === 'dark'){
-      icon.textContent = '☀';
-      label.textContent = 'Modo claro';
-    } else {
-      icon.textContent = '☾';
-      label.textContent = 'Modo escuro';
-    }
+    icon.textContent = theme === 'dark' ? '☀' : '☾';
+    label.textContent = theme === 'dark' ? 'Modo claro' : 'Modo escuro';
     try{ localStorage.setItem('composicao-preco-theme', theme); }catch(e){}
   }
 
@@ -28,220 +19,242 @@ if(typeof pdfjsLib !== 'undefined'){
   apply(saved);
 
   btn.addEventListener('click', () => {
-    const current = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    apply(current);
+    apply(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
   });
 })();
 
 /* ---------------------------------------------------------------------
    HELPERS
 --------------------------------------------------------------------- */
-function num(id){ return parseFloat(document.getElementById(id).value) || 0; }
 function fmtBRL(n){ return (n || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
+function fmtPct(n){ return (n || 0).toLocaleString('pt-BR', {maximumFractionDigits: 2}) + '%'; }
 function escapeHtml(str){
   return String(str == null ? '' : str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 }
-function freteAtivo(){
-  return !document.getElementById('frete-box').classList.contains('hidden');
-}
 
 /* ---------------------------------------------------------------------
-   ITENS — todos usam as mesmas alíquotas, definidas na seção 2
+   LEITURA DA PLANILHA ("Ver. 3.0 - Planilha de Cálculo de Revenda ou
+   Distribuição"). O layout é fixo; as colunas abaixo seguem esse modelo.
+   O site NÃO recalcula: lê os valores já calculados (em cache) pelo Excel.
 --------------------------------------------------------------------- */
+const SHEET_NAME = 'Revenda';
+const HEADER_ROW = 13;
+const FIRST_ROW = 14;
+const LAST_ROW = 113;
+const COL = {
+  item: 'A',      // código do item
+  desc: 'E',      // descrição
+  ncm: 'G',       // NCM
+  qtd: 'P',       // quantidade
+  icms: 'R',      // ICMS de saída (%)
+  pisCofins: 'S', // PIS/COFINS de saída (%)
+  ipi: 'T',       // IPI de saída (%)
+  unitDireta: 'W',  // preço unitário - revenda direta (receita bruta s/ IPI)
+  totalDireta: 'X', // preço total - revenda direta
+  unitPortal: 'Z',  // preço unitário - portal (líquido de ICMS e IPI)
+  totalPortal: 'AA' // preço total - portal
+};
+const CELL_SERVICOS = 'E9';
+
 let items = [];
-let itemCounter = 0;
+let servicos = null;
 
-function calcItemValues(item, totalQtd){
-  const custo = item.custo;
-  const qtd = item.qtd;
-  const ipiInF = num('ipi-in') / 100;
-  const icmsInF = num('icms-in') / 100;
-  const pisCofinsInF = num('pis-cofins-in') / 100;
-  const ipiOutF = num('ipi-out') / 100;
-  const icmsOutF = num('icms-out') / 100;
-  const pisCofinsOutF = num('pis-cofins-out') / 100;
-  const margemF = num('margem-out') / 100;
-
-  const freteTotal = freteAtivo() ? num('frete-valor') : 0;
-  const servicoUnit = (freteTotal > 0 && totalQtd > 0) ? freteTotal / totalQtd : 0;
-
-  /* impostos de entrada — em cascata, "por dentro" para o IPI de entrada */
-  const ipiEntradaValor = custo / (1 + ipiInF) * ipiInF;
-  const icmsEntradaValor = (custo - ipiEntradaValor) * icmsInF;
-  const pisCofinsEntradaValor = (custo - ipiEntradaValor - icmsEntradaValor) * pisCofinsInF;
-
-  const cmv = servicoUnit + (custo - ipiEntradaValor - icmsEntradaValor - pisCofinsEntradaValor);
-
-  /* impostos de saída — um único divisor que já embute ICMS, o efeito do
-     IPI sobre o ICMS e PIS/COFINS de saída */
-  const denomSaida = 1 - icmsOutF - (icmsOutF * ipiOutF) - pisCofinsOutF;
-  const denomMargem = 1 - margemF;
-
-  let precoFinal = 0, warn = false;
-  if(denomMargem <= 0 || denomSaida <= 0){
-    warn = true;
-  } else {
-    const recLiq = cmv / denomMargem;
-    precoFinal = recLiq / denomSaida;
-  }
-  const total = precoFinal * (parseFloat(qtd) || 0);
-  return {cmv, precoFinal, total, warn};
+/* células com erro (#REF!, #VALUE!...) são tratadas como vazias */
+function cellAt(ws, addr){
+  const c = ws[addr];
+  return (c && c.t !== 'e') ? c : null;
+}
+function numAt(ws, addr){
+  const c = cellAt(ws, addr);
+  return (c && typeof c.v === 'number' && isFinite(c.v)) ? c.v : null;
+}
+function strAt(ws, addr){
+  const c = cellAt(ws, addr);
+  return (c && c.v != null) ? String(c.v).trim() : '';
 }
 
-function recalcAll(){
-  const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
-  let grandTotal = 0;
-  let anyWarn = false;
-
-  items.forEach(it => {
-    const r = calcItemValues(it, totalQtd);
-    if(r.warn) anyWarn = true;
-    grandTotal += r.total;
-    it._calc = r;
-
-    const row = document.querySelector('tr[data-row-id="' + it.id + '"]');
-    if(row){
-      row.querySelector('.c-cmv').textContent = fmtBRL(r.cmv);
-      row.querySelector('.c-preco-final').textContent = fmtBRL(r.precoFinal);
-      row.querySelector('.c-total').textContent = fmtBRL(r.total);
+/* procura uma coluna de PN nas linhas de cabeçalho (12 e 13) */
+function findPnColumn(ws){
+  const re = /^(pn|p\/n|part\s*number|partnumber|n[ºo°]?\s*da\s*pe[çc]a|n[úu]mero\s*da\s*pe[çc]a)$/i;
+  for(const row of [HEADER_ROW - 1, HEADER_ROW]){
+    for(let c = 0; c < 60; c++){
+      const addr = XLSX.utils.encode_cell({r: row - 1, c: c});
+      if(re.test(strAt(ws, addr))) return XLSX.utils.encode_col(c);
     }
-  });
+  }
+  return null;
+}
 
-  document.getElementById('grand-total').textContent = fmtBRL(grandTotal);
+function parseWorkbook(wb){
+  const warnings = [];
+  const ws = wb.Sheets[SHEET_NAME] || wb.Sheets[wb.SheetNames[0]];
+  if(!wb.Sheets[SHEET_NAME]) warnings.push('Aba "' + SHEET_NAME + '" não encontrada; usando a primeira aba (' + wb.SheetNames[0] + ').');
 
-  const warnEl = document.getElementById('pricing-warning');
-  if(anyWarn){
-    warnEl.style.display = 'block';
-    warnEl.textContent = 'Os percentuais informados resultam em divisor zero ou negativo (ICMS saída + IPI, PIS/COFINS saída ou margem estão altos demais). Ajuste os percentuais — o preço final não pode ser calculado assim.';
-  } else {
-    warnEl.style.display = 'none';
+  const okLayout = strAt(ws, COL.item + HEADER_ROW).toUpperCase() === 'ITEM'
+    && /TOTAL/i.test(strAt(ws, COL.totalDireta + HEADER_ROW));
+  if(!okLayout) warnings.push('O cabeçalho da linha ' + HEADER_ROW + ' não parece o da planilha Ver. 3.0. Confira se as colunas leem os valores certos.');
+
+  const pnCol = findPnColumn(ws);
+  const list = [];
+  const skipped = [];
+
+  for(let r = FIRST_ROW; r <= LAST_ROW; r++){
+    const code = strAt(ws, COL.item + r);
+    if(code === '') continue;
+
+    const qtd = numAt(ws, COL.qtd + r);
+    const prices = {
+      unitDireta: numAt(ws, COL.unitDireta + r),
+      totalDireta: numAt(ws, COL.totalDireta + r),
+      unitPortal: numAt(ws, COL.unitPortal + r),
+      totalPortal: numAt(ws, COL.totalPortal + r)
+    };
+    if(!(qtd > 0)){ skipped.push('Item ' + code + ' (linha ' + r + '): quantidade vazia.'); continue; }
+    if(Object.values(prices).some(v => v === null)){
+      skipped.push('Item ' + code + ' (linha ' + r + '): preço sem valor calculado (confira se a planilha tem erro, como #REF!).');
+      continue;
+    }
+
+    list.push({
+      code: code,
+      pn: pnCol ? strAt(ws, pnCol + r) : '',
+      desc: strAt(ws, COL.desc + r),
+      ncm: strAt(ws, COL.ncm + r),
+      qtd: qtd,
+      icms: (numAt(ws, COL.icms + r) || 0) * 100,
+      pisCofins: (numAt(ws, COL.pisCofins + r) || 0) * 100,
+      ipi: (numAt(ws, COL.ipi + r) || 0) * 100,
+      unitDireta: prices.unitDireta,
+      totalDireta: prices.totalDireta,
+      unitPortal: prices.unitPortal,
+      totalPortal: prices.totalPortal
+    });
   }
 
-  renderOutputTable(grandTotal);
+  if(!pnCol) warnings.push('Não encontrei uma coluna "PN" no cabeçalho; a descrição será usada como identificação do item.');
+  skipped.forEach(s => warnings.push(s));
+
+  /* conferência: soma lida x subtotal da própria planilha (X11) */
+  const subtotal = numAt(ws, COL.totalDireta + '11');
+  if(skipped.length === 0 && subtotal !== null){
+    const soma = list.reduce((s, it) => s + it.totalDireta, 0);
+    if(Math.abs(soma - subtotal) > 0.01) warnings.push('A soma dos itens (' + fmtBRL(soma) + ') difere do subtotal da planilha (' + fmtBRL(subtotal) + ').');
+  }
+
+  return {
+    list: list,
+    warnings: warnings,
+    servicos: numAt(ws, CELL_SERVICOS),
+    proposta: strAt(ws, 'E2'),
+    cliente: strAt(ws, 'E3'),
+    pnCol: pnCol
+  };
 }
 
-function addItem(pn, descricao, ncm, custo, qtd){
-  pn = pn || '';
-  descricao = descricao || '';
-  ncm = ncm || '';
-  custo = custo || 0;
-  qtd = (qtd === undefined || qtd === null) ? 1 : qtd;
+document.getElementById('xlsx-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  const statusEl = document.getElementById('upload-status');
+  const warnEl = document.getElementById('upload-warnings');
+  if(!file) return;
+  statusEl.className = '';
+  statusEl.textContent = 'Lendo planilha...';
+  warnEl.innerHTML = '';
 
-  itemCounter++;
-  const id = 'i' + itemCounter;
-  const item = {id: id, pn: pn, descricao: descricao, ncm: ncm, custo: custo, qtd: qtd};
-  items.push(item);
+  if(typeof XLSX === 'undefined'){
+    statusEl.className = 'err';
+    statusEl.textContent = 'A biblioteca de leitura de Excel não carregou (verifique a conexão ou se algo bloqueia cdnjs.cloudflare.com).';
+    return;
+  }
 
-  const tr = document.createElement('tr');
-  tr.setAttribute('data-row-id', id);
-  tr.innerHTML =
-    '<td><input type="text" class="cell-pn" value="' + escapeHtml(pn) + '" placeholder="PN"></td>' +
-    '<td><input type="text" class="cell-descricao" value="' + escapeHtml(descricao) + '" placeholder="Descrição"></td>' +
-    '<td><input type="text" class="cell-ncm" value="' + escapeHtml(ncm) + '" placeholder="0000.00.00"></td>' +
-    '<td><input type="number" class="cell-custo" step="0.01" value="' + custo + '"></td>' +
-    '<td><input type="number" class="cell-qtd" step="1" min="0" value="' + qtd + '"></td>' +
-    '<td class="calc c-cmv">R$ 0,00</td>' +
-    '<td class="calc c-preco-final strong">R$ 0,00</td>' +
-    '<td class="calc c-total strong">R$ 0,00</td>' +
-    '<td><button type="button" class="row-remove" aria-label="Remover item">✕</button></td>';
+  try{
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type: 'array'});
+    const res = parseWorkbook(wb);
+    items = res.list;
+    servicos = res.servicos;
 
-  document.getElementById('items-tbody').appendChild(tr);
-
-  tr.querySelector('.cell-pn').addEventListener('input', (e) => { item.pn = e.target.value; renderOutputTable(); });
-  tr.querySelector('.cell-descricao').addEventListener('input', (e) => { item.descricao = e.target.value; renderOutputTable(); });
-  tr.querySelector('.cell-ncm').addEventListener('input', (e) => { item.ncm = e.target.value; renderOutputTable(); });
-  tr.querySelector('.cell-custo').addEventListener('input', (e) => {
-    item.custo = parseFloat(e.target.value) || 0;
-    recalcAll();
-  });
-  tr.querySelector('.cell-qtd').addEventListener('input', (e) => {
-    item.qtd = parseFloat(e.target.value) || 0;
-    recalcAll();
-  });
-  tr.querySelector('.row-remove').addEventListener('click', () => {
-    items = items.filter(i => i.id !== id);
-    tr.remove();
-    recalcAll();
-  });
-
-  recalcAll();
-  return id;
-}
-
-document.getElementById('add-item').addEventListener('click', () => addItem('', '', '', 0, 1));
-
-const rateIds = ['icms-in','pis-cofins-in','ipi-in','ipi-out','icms-out','pis-cofins-out','iss-out','margem-out','frete-valor'];
-rateIds.forEach(id => document.getElementById(id).addEventListener('input', recalcAll));
-
-document.getElementById('frete-toggle').addEventListener('click', () => {
-  const box = document.getElementById('frete-box');
-  const btn = document.getElementById('frete-toggle');
-  const willShow = box.classList.contains('hidden');
-  box.classList.toggle('hidden', !willShow);
-  btn.classList.toggle('active', willShow);
-  btn.textContent = willShow ? '− Remover frete do preço' : '+ Considerar frete no preço';
-  recalcAll();
+    const partes = [items.length + (items.length === 1 ? ' item lido' : ' itens lidos')];
+    if(res.proposta) partes.push('proposta ' + res.proposta);
+    if(res.cliente) partes.push('cliente ' + res.cliente);
+    statusEl.className = items.length ? 'ok' : 'err';
+    const resumo = partes.join(' · ');
+    statusEl.textContent = items.length ? 'Planilha lida: ' + resumo + (resumo.endsWith('.') ? '' : '.') : 'Nenhum item válido encontrado na planilha.';
+    warnEl.innerHTML = res.warnings.map(w => '<li>' + escapeHtml(w) + '</li>').join('');
+    renderOutput();
+  } catch(err){
+    statusEl.className = 'err';
+    statusEl.textContent = 'Erro ao ler a planilha: ' + err.message;
+  }
 });
 
-/* linha inicial */
-addItem('', '', '', 0, 1);
-
 /* ---------------------------------------------------------------------
-   TABELA DE SAÍDA — mesma estrutura do modelo de referência:
-   Item | Modelo (PN + descrição) | Qtd | NCM | Preço Unitário | Preço Total
+   TABELA DE SAÍDA — Item | Modelo | Qtd | NCM | Preço Unitário | Preço Total
 --------------------------------------------------------------------- */
-function renderOutputTable(grandTotalArg){
+function groupByRate(list, key){
+  const map = new Map();
+  list.forEach((it, idx) => {
+    const v = Math.round(it[key] * 10000) / 10000;
+    if(!map.has(v)) map.set(v, []);
+    map.get(v).push(idx + 1);
+  });
+  return Array.from(map.entries()).map(([rate, nums]) => ({rate, nums}));
+}
+function describeRates(list, key){
+  const groups = groupByRate(list, key);
+  if(groups.length === 1) return fmtPct(groups[0].rate);
+  return groups.map(g => fmtPct(g.rate) + ' (' + (g.nums.length > 1 ? 'itens ' : 'item ') + g.nums.join(', ') + ')').join(' e ');
+}
+
+function renderOutput(){
+  const portal = document.getElementById('opt-preco').value === 'portal';
   const tbody = document.getElementById('output-tbody');
-  const totalQtd = items.reduce((s, it) => s + (parseFloat(it.qtd) || 0), 0);
-  let grandTotal = 0;
+  let total = 0;
 
   const rowsHtml = items.map((it, idx) => {
-    const r = it._calc || calcItemValues(it, totalQtd);
-    grandTotal += r.total;
+    const unit = portal ? it.unitPortal : it.unitDireta;
+    const tot = portal ? it.totalPortal : it.totalDireta;
+    total += tot;
+    const nome = it.pn || it.desc || ('Item ' + it.code);
+    const sub = it.pn ? it.desc : '';
     return '<tr>' +
       '<td>' + (idx + 1) + '</td>' +
-      '<td class="left"><strong>' + escapeHtml(it.pn || '—') + '</strong>' +
-        (it.descricao ? '<br>' + escapeHtml(it.descricao) : '') +
-      '</td>' +
-      '<td>' + (it.qtd || 0) + '</td>' +
+      '<td class="left"><strong>' + escapeHtml(nome) + '</strong>' + (sub ? '<br>' + escapeHtml(sub) : '') + '</td>' +
+      '<td>' + it.qtd + '</td>' +
       '<td>' + escapeHtml(it.ncm || '—') + '</td>' +
-      '<td>' + fmtBRL(r.precoFinal) + '</td>' +
-      '<td>' + fmtBRL(r.total) + '</td>' +
+      '<td>' + fmtBRL(unit) + '</td>' +
+      '<td>' + fmtBRL(tot) + '</td>' +
     '</tr>';
   }).join('');
 
-  tbody.innerHTML = rowsHtml || '<tr><td colspan="6">Nenhum item adicionado.</td></tr>';
+  tbody.innerHTML = rowsHtml || '<tr><td colspan="6">Escolha a planilha para carregar os itens.</td></tr>';
+  document.getElementById('output-total').textContent = fmtBRL(total);
 
   const freteRow = document.getElementById('output-frete-row');
-  if(freteAtivo() && num('frete-valor') > 0){
+  if(items.length && servicos !== null && servicos > 0){
     freteRow.classList.remove('hidden');
-    freteRow.querySelector('#output-frete-valor').innerHTML = fmtBRL(num('frete-valor'));
+    document.getElementById('output-frete-valor').textContent = fmtBRL(servicos);
   } else {
     freteRow.classList.add('hidden');
   }
-  document.getElementById('output-total').textContent = fmtBRL(grandTotalArg !== undefined ? grandTotalArg : grandTotal);
 
-  renderOutputNotes();
+  renderOutputNotes(portal);
 }
 
-function fmtPct(n){
-  return (n || 0).toLocaleString('pt-BR', {maximumFractionDigits: 2}) + '%';
-}
-
-/* bullets de impostos (alíquotas de saída), estado do ICMS e bloco Zona Franca */
-function renderOutputNotes(){
+/* bullets de impostos (alíquotas de saída lidas da planilha), estado e Zona Franca */
+function renderOutputNotes(portal){
   const ncms = [];
   items.forEach(it => {
     const n = (it.ncm || '').trim();
     if(n && ncms.indexOf(n) === -1) ncms.push(n);
   });
 
-  const ipiMode = document.getElementById('opt-ipi').value;
-  const taxLines = [
-    'PIS/COFINS: ' + fmtPct(num('pis-cofins-out')) + ' incluso',
-    'ICMS: ' + fmtPct(num('icms-out')) + ' incluso',
-    'IPI: ' + fmtPct(num('ipi-out')) + ' ' + ipiMode
-  ];
+  const ipiMode = portal ? 'excluso' : document.getElementById('opt-ipi').value;
+  const taxLines = [];
+  if(items.length){
+    taxLines.push('PIS/COFINS: ' + describeRates(items, 'pisCofins') + ' incluso');
+    taxLines.push('ICMS: ' + describeRates(items, 'icms') + (portal ? ' excluso (preços líquidos de ICMS)' : ' incluso'));
+    taxLines.push('IPI: ' + describeRates(items, 'ipi') + ' ' + ipiMode);
+  }
   const taxHtml = taxLines.map(l => '<li>' + escapeHtml(l) + '</li>').join('');
 
   document.getElementById('output-tax-list').innerHTML = ncms.length
@@ -260,10 +273,10 @@ function renderOutputNotes(){
   document.getElementById('output-zf').classList.toggle('hidden', !document.getElementById('opt-zf').checked);
 }
 
-['opt-estado', 'opt-ipi', 'opt-zf'].forEach(id => {
+['opt-preco', 'opt-estado', 'opt-ipi', 'opt-zf'].forEach(id => {
   const el = document.getElementById(id);
-  el.addEventListener('input', renderOutputNotes);
-  el.addEventListener('change', renderOutputNotes);
+  el.addEventListener('input', renderOutput);
+  el.addEventListener('change', renderOutput);
 });
 
 /* ---------------------------------------------------------------------
@@ -287,78 +300,4 @@ document.getElementById('copy-table').addEventListener('click', () => {
   setTimeout(() => { statusEl.textContent = ''; }, 4000);
 });
 
-/* ---------------------------------------------------------------------
-   EXTRAÇÃO DO PDF (opcional)
-   O layout do fornecedor pode variar, então isso é só um ponto de
-   partida — confira e ajuste os campos manualmente. Ajuste os regex em
-   PATTERNS conforme o modelo real do seu fornecedor para aumentar a
-   precisão.
---------------------------------------------------------------------- */
-const PATTERNS = {
-  precoCompra: /(?:valor unit[aá]rio|pre[cç]o unit[aá]rio|valor total|pre[cç]o)\s*[:\-]?\s*R?\$?\s*([\d.,]+)/i,
-  ncm: /NCM\s*[:\-]?\s*(\d{4}\.?\d{2}\.?\d{2})/i
-};
-
-function parseCurrencyToNumber(str){
-  if(!str) return null;
-  const cleaned = str.replace(/[^\d,.-]/g,'').replace(/\.(?=\d{3},)/g,'').replace(',', '.');
-  const n = parseFloat(cleaned);
-  return isNaN(n) ? null : n;
-}
-
-document.getElementById('pdf-input').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  const statusEl = document.getElementById('upload-status');
-  if(!file) return;
-  statusEl.className = '';
-  statusEl.textContent = 'Lendo PDF...';
-
-  if(typeof pdfjsLib === 'undefined'){
-    statusEl.className = 'err';
-    statusEl.textContent = 'A biblioteca de leitura de PDF não carregou (verifique sua conexão ou se algo está bloqueando cdnjs.cloudflare.com). Preencha os campos manualmente.';
-    return;
-  }
-
-  try{
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-    let fullText = '';
-    for(let i=1; i<=pdf.numPages; i++){
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      fullText += content.items.map(it => it.str).join(' ') + '\n';
-    }
-
-    const cMatch = fullText.match(PATTERNS.precoCompra);
-    const nMatch = fullText.match(PATTERNS.ncm);
-    let found = [];
-
-    if(cMatch && items.length){
-      const val = parseCurrencyToNumber(cMatch[1]);
-      if(val !== null){
-        items[0].custo = val;
-        const row = document.querySelector('tr[data-row-id="' + items[0].id + '"]');
-        if(row) row.querySelector('.cell-custo').value = val.toFixed(2);
-        found.push('preço do 1º item');
-      }
-    }
-    if(nMatch && items.length){
-      items[0].ncm = nMatch[1];
-      const row = document.querySelector('tr[data-row-id="' + items[0].id + '"]');
-      if(row) row.querySelector('.cell-ncm').value = nMatch[1];
-      found.push('NCM do 1º item');
-    }
-    recalcAll();
-
-    if(found.length){
-      statusEl.className = 'ok';
-      statusEl.textContent = 'Extraído automaticamente: ' + found.join(', ') + '. Confira os campos antes de prosseguir.';
-    } else {
-      statusEl.className = 'err';
-      statusEl.textContent = 'Não foi possível reconhecer os campos automaticamente neste layout. Preencha manualmente.';
-    }
-  } catch(err){
-    statusEl.className = 'err';
-    statusEl.textContent = 'Erro ao ler o PDF: ' + err.message;
-  }
-});
+renderOutput();

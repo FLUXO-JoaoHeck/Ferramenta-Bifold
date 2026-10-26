@@ -1,53 +1,44 @@
-# Composição de Preço
+# Tabela de Preços e Impostos
 
-Ferramenta em três arquivos (`index.html`, `style.css`, `script.js`), sem backend, para:
-1. (Opcional) extrair o custo de um PDF de fornecedor
-2. Definir as alíquotas de ICMS, PIS/COFINS, IPI, ISS e a margem desejada
-3. Montar os itens (PN, descrição, NCM, custo, quantidade) — o preço é calculado automaticamente
-4. Gerar uma tabela pronta para copiar e colar formatada em um Word
+Site estático (`index.html`, `style.css`, `script.js`), sem backend, que lê a
+planilha de revenda (Ver. 3.0) e gera a seção "Preços e Impostos" da proposta,
+pronta para copiar e colar no Word.
 
-Tudo roda no navegador — não precisa de servidor, banco de dados ou chave de API.
+## Como usar
+1. Abra o site e escolha o arquivo Excel (aba "Revenda").
+2. Confira os itens lidos e os avisos exibidos.
+3. Em "Opções da tabela", escolha o preço (Revenda direta ou Portal), o estado
+   do cliente, como o IPI aparece e se o destino é Zona Franca de Manaus.
+4. Clique em "Copiar tabela" e cole (Ctrl+V) no Word.
 
-## Como publicar no GitHub Pages
+## O que o site lê da planilha
+O site NÃO recalcula preços: lê os valores já calculados pelo Excel
+(o arquivo precisa ter sido salvo pelo Excel, com os resultados em cache).
 
-1. Crie um repositório novo no GitHub.
-2. Suba os três arquivos juntos (`index.html`, `style.css`, `script.js`) para a raiz do repositório — os três precisam estar na mesma pasta.
-3. Vá em **Settings → Pages**, selecione a branch `main` e a pasta `/ (root)`, salve.
-4. Em alguns minutos o GitHub mostra a URL pública (`https://seu-usuario.github.io/nome-do-repositorio/`).
+| Dado | Coluna |
+|---|---|
+| Item (código) | A |
+| Descrição | E |
+| NCM | G |
+| Quantidade | P |
+| ICMS / PIS-COFINS / IPI de saída (%) | R / S / T |
+| Preço unitário e total, revenda direta | W / X |
+| Preço unitário e total, portal (líquido de ICMS e IPI) | Z / AA |
+| Frete rateado ("Serviços") | E9 |
 
-## Fórmula de composição de preço
+- Linhas lidas: 14 a 113. Itens sem quantidade ou com erro (`#REF!`) nos preços
+  são ignorados, com aviso na tela.
+- PN: o site procura uma coluna chamada "PN" (ou "Part Number") nas linhas 12 e
+  13. Se não achar, usa a descrição como identificação do item.
+- A soma dos itens é conferida com o subtotal da planilha (X11) quando todos os
+  itens são lidos.
 
-```
-Créditos de entrada:
-  IPI(R$)        = Custo / (1 + IPI%_entrada) x IPI%_entrada
-  ICMS(R$)       = (Custo - IPI(R$)) x ICMS%_entrada
-  PIS/COFINS(R$) = (Custo - IPI(R$) - ICMS(R$)) x PIS/COFINS%_entrada
+## Publicar no GitHub Pages
+Suba os três arquivos juntos para a raiz do repositório e ative o Pages em
+Settings → Pages (branch `main`, pasta `/ (root)`).
 
-CMV = Servico(R$) + (Custo - IPI(R$) - ICMS(R$) - PIS/COFINS(R$))
-
-RecLiq = CMV / (1 - Margem%)
-DenomSaida = 1 - ICMS%_saida - ICMS%_saida x IPI%_saida - PIS/COFINS%_saida
-Preco final = RecLiq / DenomSaida
-```
-
-"Servico(R$)" e o valor de frete (se ativado), dividido igualmente entre a
-quantidade total de todos os itens.
-
-## Copiar a tabela para o Word
-
-O botao "Copiar tabela" seleciona a tabela final e copia via
-`document.execCommand('copy')`, preservando negrito, bordas e alinhamento -
-basta colar (Ctrl+V) direto no Word. Se o navegador bloquear a copia
-automatica, selecione a tabela manualmente e use Ctrl+C.
-
-## Como funciona a extracao do PDF
-
-Best-effort: procura por "Valor Unitario/Preco" e "NCM" no texto do PDF via
-`pdf.js`. Ajuste os regex em `PATTERNS`, no inicio de `script.js`, para o
-layout real do seu fornecedor.
-
-## Estrutura dos arquivos
-
-- `index.html` - estrutura da pagina
-- `style.css` - aparencia, modo claro/escuro, estilo da tabela final
-- `script.js` - extracao do PDF, calculo, tabela de saida e copia para o Word
+## Observações
+- A biblioteca de leitura de Excel (SheetJS) é carregada por CDN: é preciso
+  estar online.
+- A formatação da tabela copiada segue o documento original (Open Sans, 8 pt,
+  linhas horizontais finas, alinhamento centralizado, linhas de 2 cm).
