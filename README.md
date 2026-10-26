@@ -15,6 +15,11 @@ pronta para copiar e colar no Word.
 O site NÃO recalcula preços: lê os valores já calculados pelo Excel
 (o arquivo precisa ter sido salvo pelo Excel, com os resultados em cache).
 
+O arquivo pode ter várias abas (Entradas, Lista de Preços, Resumo, NCM...). O
+site procura **somente** a aba chamada "Revenda" (sem diferenciar maiúsculas,
+acentos ou espaços nas pontas) e lê apenas ela. Se não a encontrar, para e
+mostra a lista de abas do arquivo, sem tentar outra aba no lugar.
+
 | Dado | Coluna |
 |---|---|
 | Item (código) | A |

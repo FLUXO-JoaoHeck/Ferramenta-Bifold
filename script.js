@@ -85,10 +85,18 @@ function findPnColumn(ws){
   return null;
 }
 
-function parseWorkbook(wb){
+/* acha a aba "Revenda" pelo nome (ignora maiúsculas, acentos e espaços nas pontas) */
+function normalizeName(n){
+  return String(n).normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+}
+function findSheetName(names){
+  const alvo = normalizeName(SHEET_NAME);
+  return names.find(n => normalizeName(n) === alvo) || null;
+}
+
+function parseWorkbook(wb, sheetName){
   const warnings = [];
-  const ws = wb.Sheets[SHEET_NAME] || wb.Sheets[wb.SheetNames[0]];
-  if(!wb.Sheets[SHEET_NAME]) warnings.push('Aba "' + SHEET_NAME + '" não encontrada; usando a primeira aba (' + wb.SheetNames[0] + ').');
+  const ws = wb.Sheets[sheetName];
 
   const okLayout = strAt(ws, COL.item + HEADER_ROW).toUpperCase() === 'ITEM'
     && /TOTAL/i.test(strAt(ws, COL.totalDireta + HEADER_ROW));
@@ -168,12 +176,26 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
 
   try{
     const buf = await file.arrayBuffer();
-    const wb = XLSX.read(buf, {type: 'array'});
-    const res = parseWorkbook(wb);
+
+    /* 1ª leitura: só os nomes das abas (rápida, mesmo com abas grandes) */
+    const nomes = XLSX.read(buf, {type: 'array', bookSheets: true}).SheetNames;
+    const alvo = findSheetName(nomes);
+    if(!alvo){
+      items = [];
+      servicos = null;
+      statusEl.className = 'err';
+      statusEl.textContent = 'Não encontrei a aba "' + SHEET_NAME + '" neste arquivo. Abas encontradas: ' + nomes.join(', ') + '.';
+      renderOutput();
+      return;
+    }
+
+    /* 2ª leitura: só a aba Revenda */
+    const wb = XLSX.read(buf, {type: 'array', sheets: alvo});
+    const res = parseWorkbook(wb, alvo);
     items = res.list;
     servicos = res.servicos;
 
-    const partes = [items.length + (items.length === 1 ? ' item lido' : ' itens lidos')];
+    const partes = ['aba "' + alvo + '"', items.length + (items.length === 1 ? ' item lido' : ' itens lidos')];
     if(res.proposta) partes.push('proposta ' + res.proposta);
     if(res.cliente) partes.push('cliente ' + res.cliente);
     statusEl.className = items.length ? 'ok' : 'err';
