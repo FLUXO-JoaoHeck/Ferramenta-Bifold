@@ -378,115 +378,200 @@ renderOutput();
     return match && match[1] ? clean(match[1]) : '';
   }
 
-  function parsePdfText(lines){
-    const all = lines.join('\n');
+  
+function parsePdfText(lines) {
+  const all = lines.join('\n');
 
-    const proposal = (all.match(/Rotork\s+Quotation\s*[-–]\s*([^\s\n]+)/i)
-      || all.match(/Nossa refer[êe]ncia:\s*([^\n]+)/i)
-      || [,''])[1].trim();
+  // Dados gerais da proposta
+  const proposalMatch =
+    all.match(/PROPOSTA\s+TÉCNICA\s+([A-Z0-9-]+(?:\s+REV\d+)?(?:\s*-\s*[^\n]+)?)/i) ||
+    all.match(/Rotork\s+Quotation\s*[-–]\s*([^\s\n]+)/i) ||
+    all.match(/Nossa refer[êe]ncia:\s*([^\n]+)/i);
 
-    const date = findMatch(lines, /Data:\s*(.+)$/i);
-    const validity = findMatch(lines, /Expira[çc][ãa]o da cota[çc][ãa]o:\s*(.+)$/i);
-    const payment = lines.find(l => /^(100%|\d+%).*DDL.*$/i.test(l)) || '';
-    const delivery = findMatch(lines, /^(\d+\s*dias[^\n]*)$/i);
-    const client = lines.find(l => /LTDA\.?/i.test(l) && !/ROTORK/i.test(l)) || '';
-    const ncm = findMatch(lines, /Classifica[çc][ãa]o fiscal:\s*(.+)$/i);
+  const proposal = proposalMatch ? clean(proposalMatch[1]) : '';
 
-    const taxLines = lines.filter(l =>
-      /^(?:Classifica[çc][ãa]o fiscal:|[-–]\s*(?:PIS|COFINS|ICMS|IPI):|Estamos considerando)/i.test(l)
-    );
+  const dateMatch = all.match(/\b(\d{2}\/\d{2}\/\d{4})\b/);
+  const date = dateMatch ? dateMatch[1] : '';
 
-    const totalLine = [...lines].reverse().find(l =>
-      /Total Geral/i.test(l) || /^Total\s*$/i.test(l)
-    );
+  const clientMatch =
+    all.match(/CLIENTE\s*\n\s*([^\n]+)/i) ||
+    all.match(/Cliente:\s*([^\n]+)/i);
 
-    let grandTotal = '';
-    for(let i = lines.length - 1; i >= 0; i--){
-      const m = lines[i].match(/(?:BRL|R\$)\s*([\d.,]+)/i);
-      if(m){ grandTotal = m[1]; break; }
-    }
+  const client = clientMatch ? clean(clientMatch[1]) : '';
 
-    if(!grandTotal && totalLine){
-      const m = totalLine.match(/([\d.]+,\d{2}|\d{1,3}(?:,\d{3})*\.\d{2})\s*$/);
-      if(m) grandTotal = m[1];
-    }
+  const validity = findMatch(
+    lines,
+    /Expira[çc][ãa]o da cota[çc][ãa]o:\s*(.+)$/i
+  );
 
-    const parsedItems = [];
-    let current = null;
-    const pnRe = /^P\s*\/\s*N\s*:\s*(.+)$/i;
+  const payment =
+    lines.find(l => /^(100%|\d+%).*DDL.*$/i.test(l)) || '';
 
-    const stopRe = /^(?:Instruments?:|Total Geral|Classifica[çc][ãa]o fiscal:|[-–]\s*(?:PIS|COFINS|ICMS|IPI):|Estamos considerando|\d+\s+of\s+\d+)\b/i;
+  const delivery = findMatch(
+    lines,
+    /^(\d+\s*dias[^\n]*)$/i
+  );
 
-    lines.forEach(line => {
-      const pnMatch = line.match(pnRe);
+  const ncm = findMatch(
+    lines,
+    /Classifica[çc][ãa]o fiscal:\s*(.+)$/i
+  );
 
-      if(pnMatch){
-        if(current) parsedItems.push(current);
+  const taxLines = lines.filter(l =>
+    /^(?:Classifica[çc][ãa]o fiscal:|[-–]\s*(?:PIS|COFINS|ICMS|IPI):|Estamos considerando)/i.test(l)
+  );
 
-        let rest = clean(pnMatch[1]);
-        let qty = '', unit = '', total = '';
+  // Captura o total indicado no documento
+  let grandTotal = '';
+  const totalMatches = all.match(
+    /(?:Total Geral|Valor Total|Total da Proposta)[^\n]*?(?:BRL|R\$)?\s*([\d.,]+)/gi
+  );
 
-        const moneyTail = rest.match(/\s+(\d+(?:[.,]\d+)?)\s+([\d.,]+)\s+([\d.,]+)\s*$/);
-
-        if(moneyTail){
-          qty = moneyTail[1];
-          unit = moneyTail[2];
-          total = moneyTail[3];
-          rest = rest.slice(0, moneyTail.index).trim();
-        }
-
-        const split = rest.match(/^(.+?)\s*[–-]\s*\((.*)$/);
-        const pn = split
-          ? split[1].trim()
-          : rest.split(/\s+[–-]\s+/)[0].trim();
-
-        let desc = split
-          ? '(' + split[2]
-          : rest.slice(pn.length).replace(/^\s*[–-]\s*/, '').trim();
-
-        current = {
-          pn: pn,
-          description: desc,
-          qty: qty,
-          unit: unit,
-          total: total
-        };
-        return;
-      }
-
-      if(current){
-        if(stopRe.test(line)){
-          parsedItems.push(current);
-          current = null;
-          return;
-        }
-
-        if(line && !/^Rotork Quotation/i.test(line) && !/^\d+\s+of\s+\d+$/i.test(line)){
-          current.description = clean(current.description + ' ' + line);
-        }
-      }
-    });
-
-    if(current) parsedItems.push(current);
-
-    const usefulItems = parsedItems.filter(it =>
-      it.pn && (it.description || it.qty || it.unit || it.total)
-    );
-
-    return {
-      proposal: proposal,
-      client: client,
-      date: date,
-      validity: validity,
-      payment: payment,
-      delivery: delivery,
-      ncm: ncm,
-      grandTotal: grandTotal,
-      tax: taxLines.join('\n'),
-      items: usefulItems,
-      raw: all
-    };
+  if (totalMatches && totalMatches.length) {
+    const last = totalMatches[totalMatches.length - 1];
+    const m = last.match(/([\d.]+,\d{2}|\d{1,3}(?:,\d{3})*\.\d{2})\s*$/);
+    if (m) grandTotal = m[1];
   }
+
+  // Identificação dos itens
+  const parsedItems = [];
+  let current = null;
+
+  function finishItem() {
+    if (current && current.pn) {
+      current.description = clean(current.description);
+      current.specs = current.specs
+        .map(s => clean(s.replace(/^[•●▪\-–]\s*/, '')))
+        .filter(Boolean);
+
+      // Mantém a descrição separada das especificações
+      current.description += current.specs.length
+        ? '\n' + current.specs.map(s => '• ' + s).join('\n')
+        : '';
+
+      parsedItems.push(current);
+    }
+    current = null;
+  }
+
+  const pnLine = /^P\s*\/\s*N\s*:\s*(.+)$/i;
+
+  // Exemplo de linha de tabela:
+  // 1 VRP-SS-1380-032-M38F-N38F-N-S 01
+  const tableItemLine =
+    /^\s*(\d+)\s+([A-Z0-9][A-Z0-9./_-]{4,})\s+(\d{1,4})\s*$/i;
+
+  const stopItem = /^(?:\(?Item\s+\d+.*Oportunidade|VER DESVIOS|Item solicitado:|Item orçado:|Notas\/Desvios|Contatos|Índice|Índice de Revisões|\d+\.\s+(?:Apresentação|Objetivo|Documentos de Referência|Escopo de Fornecimento|Notas\/Desvios|Contatos))/i;
+
+  for (const originalLine of lines) {
+    const line = clean(originalLine);
+    if (!line) continue;
+
+    const pnMatch = line.match(pnLine);
+    const tableMatch = line.match(tableItemLine);
+
+    if (pnMatch) {
+      finishItem();
+
+      let rest = clean(pnMatch[1]);
+      let qty = '';
+      let unit = '';
+      let total = '';
+
+      const moneyTail = rest.match(
+        /\s+(\d+(?:[.,]\d+)?)\s+([\d.,]+)\s+([\d.,]+)\s*$/
+      );
+
+      if (moneyTail) {
+        qty = moneyTail[1];
+        unit = moneyTail[2];
+        total = moneyTail[3];
+        rest = rest.slice(0, moneyTail.index).trim();
+      }
+
+      const split = rest.match(/^(.+?)\s*[–-]\s*\((.*)$/);
+      const pn = split
+        ? split[1].trim()
+        : rest.split(/\s+[–-]\s+/)[0].trim();
+
+      const description = split
+        ? '(' + split[2]
+        : rest.slice(pn.length).replace(/^\s*[–-]\s*/, '').trim();
+
+      current = {
+        pn,
+        description,
+        qty,
+        unit,
+        total,
+        specs: []
+      };
+      continue;
+    }
+
+    if (tableMatch) {
+      finishItem();
+
+      current = {
+        pn: tableMatch[2],
+        description: '',
+        qty: tableMatch[3],
+        unit: '',
+        total: '',
+        specs: []
+      };
+      continue;
+    }
+
+    if (!current) continue;
+
+    if (stopItem.test(line)) {
+      finishItem();
+      continue;
+    }
+
+    // Especificações técnicas que aparecem como bullets no PDF
+    if (/^[•●▪]\s*/.test(line)) {
+      current.specs.push(line.replace(/^[•●▪]\s*/, ''));
+      continue;
+    }
+
+    // Também aceita especificações com hífen
+    if (/^[-–]\s+\S/.test(line)) {
+      current.specs.push(line.replace(/^[-–]\s+/, ''));
+      continue;
+    }
+
+    // Ignora cabeçalhos e rodapés recorrentes
+    if (/^(?:PROPOSTA TÉCNICA|Rua Espírito Santo|CEP:|Tel\.?:|www\.|Pág(?:ina)?\.?\s*\d+|\d+\/\d+)$/i.test(line)) {
+      continue;
+    }
+
+    // Primeira linha comum após o PN é a descrição do produto
+    if (!current.description) {
+      current.description = line;
+    } else {
+      // Continuação de uma descrição quebrada em mais de uma linha
+      current.description += ' ' + line;
+    }
+  }
+
+  finishItem();
+
+  return {
+    proposal,
+    client,
+    date,
+    validity,
+    payment,
+    delivery,
+    ncm,
+    grandTotal,
+    tax: taxLines.join('\n'),
+    items: parsedItems,
+    raw: all
+  };
+}
 
   function setField(id, value){
     document.getElementById(id).value = value || '';
@@ -535,41 +620,92 @@ renderOutput();
     );
   }
 
-  function buildFormattedText(){
-    const lines = [];
-    const proposal = field('pdf-proposal');
+  
+function buildFormattedText() {
+  const lines = [];
 
-    if(proposal) lines.push('PROPOSTA: ' + proposal);
-    if(field('pdf-client')) lines.push('CLIENTE: ' + field('pdf-client'));
-    if(field('pdf-date')) lines.push('DATA: ' + field('pdf-date'));
-    if(field('pdf-validity')) lines.push('VALIDADE: ' + field('pdf-validity'));
-    if(field('pdf-payment')) lines.push('CONDIÇÕES DE PAGAMENTO: ' + field('pdf-payment'));
-    if(field('pdf-delivery')) lines.push('PRAZO DE ENTREGA: ' + field('pdf-delivery'));
-    if(field('pdf-ncm')) lines.push('CLASSIFICAÇÃO FISCAL / NCM: ' + field('pdf-ncm'));
-
-    if(field('pdf-tax')){
-      lines.push('\nIMPOSTOS E OBSERVAÇÕES FISCAIS\n' + field('pdf-tax'));
-    }
-
-    if(extractedItems.length){
-      lines.push('\nITENS DA PROPOSTA');
-
-      extractedItems.forEach((it, idx) => {
-        lines.push('\nITEM ' + (idx+1));
-        if(it.pn) lines.push('Part number: ' + it.pn);
-        if(it.description) lines.push('Descrição: ' + it.description);
-        if(it.qty) lines.push('Quantidade: ' + it.qty);
-        if(it.unit) lines.push('Preço unitário: ' + it.unit);
-        if(it.total) lines.push('Valor total do item: ' + it.total);
-      });
-    }
-
-    if(field('pdf-grand-total')){
-      lines.push('\nVALOR TOTAL DA PROPOSTA: ' + field('pdf-grand-total'));
-    }
-
-    formatted.value = lines.join('\n');
+  if (field('pdf-proposal')) {
+    lines.push('PROPOSTA: ' + field('pdf-proposal'));
   }
+
+  if (field('pdf-client')) {
+    lines.push('CLIENTE: ' + field('pdf-client'));
+  }
+
+  if (field('pdf-date')) {
+    lines.push('DATA: ' + field('pdf-date'));
+  }
+
+  if (field('pdf-validity')) {
+    lines.push('VALIDADE: ' + field('pdf-validity'));
+  }
+
+  if (field('pdf-payment')) {
+    lines.push('CONDIÇÕES DE PAGAMENTO: ' + field('pdf-payment'));
+  }
+
+  if (field('pdf-delivery')) {
+    lines.push('PRAZO DE ENTREGA: ' + field('pdf-delivery'));
+  }
+
+  if (field('pdf-ncm')) {
+    lines.push('CLASSIFICAÇÃO FISCAL / NCM: ' + field('pdf-ncm'));
+  }
+
+  if (field('pdf-tax')) {
+    lines.push('\nIMPOSTOS E OBSERVAÇÕES FISCAIS');
+    lines.push(field('pdf-tax'));
+  }
+
+  if (extractedItems.length) {
+    lines.push('\nESCOPO DE FORNECIMENTO');
+
+    extractedItems.forEach((it, idx) => {
+      lines.push('\nITEM ' + (idx + 1));
+
+      if (it.pn) {
+        lines.push('PN: ' + it.pn);
+      }
+
+      const descriptionLines = String(it.description || '')
+        .split(/\r?\n/)
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      if (descriptionLines.length) {
+        lines.push('Descrição: ' + descriptionLines[0]);
+
+        if (descriptionLines.length > 1) {
+          lines.push('Especificações técnicas:');
+
+          descriptionLines.slice(1).forEach(spec => {
+            lines.push(
+              '• ' + spec.replace(/^[•●▪\-–]\s*/, '')
+            );
+          });
+        }
+      }
+
+      if (it.qty) {
+        lines.push('Quantidade: ' + it.qty);
+      }
+
+      if (it.unit) {
+        lines.push('Preço unitário: ' + it.unit);
+      }
+
+      if (it.total) {
+        lines.push('Valor total do item: ' + it.total);
+      }
+    });
+  }
+
+  if (field('pdf-grand-total')) {
+    lines.push('\nVALOR TOTAL DA PROPOSTA: ' + field('pdf-grand-total'));
+  }
+
+  formatted.value = lines.join('\n');
+}
 
   document.getElementById('extract-pdf').addEventListener('click', async () => {
     const file = fileInput.files && fileInput.files[0];
