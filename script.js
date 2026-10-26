@@ -621,6 +621,7 @@ function parsePdfText(lines) {
   }
 
   
+
 function buildFormattedText() {
   const lines = [];
 
@@ -661,27 +662,31 @@ function buildFormattedText() {
     lines.push('\nESCOPO DE FORNECIMENTO');
 
     extractedItems.forEach((it, idx) => {
-      lines.push('\nITEM ' + (idx + 1));
+      // Separador de página reconhecível ao colar no Word
+      if (idx > 0) {
+        lines.push('\n\f\n');
+      }
+
+      lines.push('ITEM ' + (idx + 1));
 
       if (it.pn) {
         lines.push('PN: ' + it.pn);
       }
 
-      const descriptionLines = String(it.description || '')
-        .split(/\r?\n/)
-        .map(s => s.trim())
+      // Divide a descrição pelas vírgulas e pelas quebras de linha
+      const descriptionParts = String(it.description || '')
+        .split(/\r?\n|,\s*/)
+        .map(s => s.trim().replace(/^[•●▪\-–]\s*/, ''))
         .filter(Boolean);
 
-      if (descriptionLines.length) {
-        lines.push('Descrição: ' + descriptionLines[0]);
+      if (descriptionParts.length) {
+        lines.push('Descrição: ' + descriptionParts[0]);
 
-        if (descriptionLines.length > 1) {
+        if (descriptionParts.length > 1) {
           lines.push('Especificações técnicas:');
 
-          descriptionLines.slice(1).forEach(spec => {
-            lines.push(
-              '• ' + spec.replace(/^[•●▪\-–]\s*/, '')
-            );
+          descriptionParts.slice(1).forEach(spec => {
+            lines.push('• ' + spec);
           });
         }
       }
