@@ -20,7 +20,7 @@
   <header>
     <div class="header-text">
       <h1>Tabela de Preços e Impostos</h1>
-      <p>Leia a planilha de revenda ou extraia uma proposta em PDF para revisar e organizar o texto.</p>
+      <p>Escolha a planilha de revenda, confira os itens lidos e copie a tabela formatada para colar no Word.</p>
     </div>
     <button id="theme-toggle" type="button" aria-label="Alternar modo claro/escuro">
       <span class="icon" id="theme-icon">☾</span>
@@ -38,39 +38,8 @@
     <ul id="upload-warnings"></ul>
   </section>
 
-  
-<section id="pdf-extract-step" class="wide">
-  <h2><span class="num">2</span> Extrair PN e descrição</h2>
-
-  <div class="dropzone pdf-dropzone">
-    <input type="file" id="pdf-input" accept="application/pdf,.pdf">
-    <button type="button" id="extract-pdf" class="secondary">
-      Extrair texto
-    </button>
-  </div>
-
-  <div id="pdf-status" role="status" aria-live="polite"></div>
-
-  <div id="pdf-editor" class="hidden">
-    <label for="pdf-formatted-text">Texto formatado</label>
-    <textarea
-      id="pdf-formatted-text"
-      class="formatted-text"
-      rows="18"
-      aria-label="PN e descrição formatados">
-    </textarea>
-
-    <div class="pdf-actions">
-      <button type="button" id="copy-pdf-text">
-        Copiar texto
-      </button>
-      <span id="pdf-copy-status" aria-live="polite"></span>
-    </div>
-  </div>
-</section>
-
   <section id="options-step">
-    <h2><span class="num">3</span> Opções da tabela</h2>
+    <h2><span class="num">2</span> Opções da tabela</h2>
     <p class="hint">Ajustam a tabela e o texto gerados abaixo; não são copiadas.</p>
     <div class="out-options">
       <label>Preço exibido
@@ -96,7 +65,7 @@
   </section>
 
   <section id="output-step" class="wide">
-    <h2><span class="num">4</span> Tabela para copiar</h2>
+    <h2><span class="num">3</span> Tabela para copiar</h2>
     <p class="hint">Reproduz a seção "Preços e Impostos" da proposta: tabela, impostos e observações. Use o botão abaixo (ou selecione e Ctrl+C) e cole direto no Word mantendo a formatação.</p>
     <button id="copy-table" type="button" class="secondary">Copiar tabela</button>
     <span id="copy-status"></span>
@@ -123,6 +92,10 @@
         </thead>
         <tbody id="output-tbody"></tbody>
         <tfoot>
+          <tr id="output-frete-row" class="hidden">
+            <td colspan="5" class="left">Frete (já rateado proporcionalmente entre os itens acima)</td>
+            <td id="output-frete-valor">R$ 0,00</td>
+          </tr>
           <tr>
             <td colspan="5" class="left">VALOR TOTAL</td>
             <td id="output-total">R$ 0,00</td>
@@ -148,6 +121,28 @@
         <li>Os preços indicados nesta proposta/contrato são líquidos da CBS e do IBS. Os valores correspondentes a esses tributos serão destacados e acrescidos ao preço líquido, de acordo com as alíquotas e demais regras tributárias efetivamente aplicáveis à operação e vigentes na data do respectivo faturamento. Eventuais alterações das alíquotas, bases de cálculo ou demais critérios legais de apuração da CBS e do IBS serão refletidas nos valores dos tributos acrescidos ao preço líquido, sem alteração da margem comercial considerada na formação deste.</li>
         <li>Esta proposta contempla a aquisição da totalidade dos itens ofertados. Quantidades diferentes estão sujeitas a alterações nos termos técnicos/comerciais.</li>
       </ul>
+    </div>
+  </section>
+
+  <section id="pdf-extract-step" class="wide">
+    <h2><span class="num">4</span> Extrair PN e descrição do PDF</h2>
+    <p class="hint">Selecione um PDF. A ferramenta extrai somente o PN e as especificações técnicas e monta uma tabela para copiar para o Word.</p>
+    <div class="dropzone pdf-dropzone">
+      <input type="file" id="pdf-input" accept="application/pdf,.pdf">
+      <button type="button" id="extract-pdf" class="secondary">Extrair texto</button>
+    </div>
+    <div id="pdf-status" role="status" aria-live="polite"></div>
+    <div id="pdf-editor" class="hidden">
+      <div class="proposal-table-wrapper" id="proposal-table-wrapper">
+        <table id="proposal-table" class="proposal-table">
+          <thead><tr><th class="item-column">ITEM</th><th>DESCRIÇÃO</th><th class="qty-column">QTD</th></tr></thead>
+          <tbody id="proposal-table-body"></tbody>
+        </table>
+      </div>
+      <div class="pdf-actions">
+        <button type="button" id="copy-pdf-text">Copiar tabela</button>
+        <span id="pdf-copy-status" aria-live="polite"></span>
+      </div>
     </div>
   </section>
 </div>

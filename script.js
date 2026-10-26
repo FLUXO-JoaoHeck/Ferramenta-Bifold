@@ -42,17 +42,17 @@ const HEADER_ROW = 13;
 const FIRST_ROW = 14;
 const LAST_ROW = 113;
 const COL = {
-  item: 'A',
-  desc: 'E',
-  ncm: 'G',
-  qtd: 'P',
-  icms: 'R',
-  pisCofins: 'S',
-  ipi: 'T',
-  unitDireta: 'W',
-  totalDireta: 'X',
-  unitPortal: 'Z',
-  totalPortal: 'AA'
+  item: 'A',      // código do item
+  desc: 'E',      // descrição
+  ncm: 'G',       // NCM
+  qtd: 'P',       // quantidade
+  icms: 'R',      // ICMS de saída (%)
+  pisCofins: 'S', // PIS/COFINS de saída (%)
+  ipi: 'T',       // IPI de saída (%)
+  unitDireta: 'W',  // preço unitário - revenda direta (receita bruta s/ IPI)
+  totalDireta: 'X', // preço total - revenda direta
+  unitPortal: 'Z',  // preço unitário - portal (líquido de ICMS e IPI)
+  totalPortal: 'AA' // preço total - portal
 };
 const CELL_SERVICOS = 'E9';
 
@@ -158,6 +158,7 @@ function parseWorkbook(wb, sheetName){
     pnCol: pnCol
   };
 }
+
 document.getElementById('xlsx-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   const statusEl = document.getElementById('upload-status');
@@ -176,7 +177,7 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
   try{
     const buf = await file.arrayBuffer();
 
-    /* 1ª leitura: só os nomes das abas */
+    /* 1ª leitura: só os nomes das abas (rápida, mesmo com abas grandes) */
     const nomes = XLSX.read(buf, {type: 'array', bookSheets: true}).SheetNames;
     const alvo = findSheetName(nomes);
     if(!alvo){
@@ -209,7 +210,7 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
 });
 
 /* ---------------------------------------------------------------------
-   TABELA DE SAÍDA
+   TABELA DE SAÍDA — Item | Modelo | Qtd | NCM | Preço Unitário | Preço Total
 --------------------------------------------------------------------- */
 function groupByRate(list, key){
   const map = new Map();
@@ -220,7 +221,6 @@ function groupByRate(list, key){
   });
   return Array.from(map.entries()).map(([rate, nums]) => ({rate, nums}));
 }
-
 function describeRates(list, key){
   const groups = groupByRate(list, key);
   if(groups.length === 1) return fmtPct(groups[0].rate);
@@ -251,10 +251,18 @@ function renderOutput(){
   tbody.innerHTML = rowsHtml || '<tr><td colspan="6">Escolha a planilha para carregar os itens.</td></tr>';
   document.getElementById('output-total').textContent = fmtBRL(total);
 
+  const freteRow = document.getElementById('output-frete-row');
+  if(items.length && servicos !== null && servicos > 0){
+    freteRow.classList.remove('hidden');
+    document.getElementById('output-frete-valor').textContent = fmtBRL(servicos);
+  } else {
+    freteRow.classList.add('hidden');
+  }
+
   renderOutputNotes(portal);
 }
 
-/* impostos, estado e Zona Franca */
+/* bullets de impostos (alíquotas de saída lidas da planilha), estado e Zona Franca */
 function renderOutputNotes(portal){
   const ncms = [];
   items.forEach(it => {
@@ -278,7 +286,7 @@ function renderOutputNotes(portal){
   const estado = document.getElementById('opt-estado').value.trim();
   const estadoItem = document.getElementById('output-estado-item');
   if(estado){
-    estadoItem.textContent = 'Consideramos a compradora contribuinte de ICMS no estado de ' + estado + ';';
+    estadoItem.textContent = 'Estamos considerando que o cliente é contribuinte de ICMS no estado do ' + estado + ';';
     estadoItem.classList.remove('hidden');
   } else {
     estadoItem.classList.add('hidden');
@@ -294,7 +302,7 @@ function renderOutputNotes(portal){
 });
 
 /* ---------------------------------------------------------------------
-   COPIAR TABELA — mantém a formatação ao colar no Word
+   COPIAR TABELA — seleciona e copia mantendo a formatação (cola no Word)
 --------------------------------------------------------------------- */
 document.getElementById('copy-table').addEventListener('click', () => {
   const statusEl = document.getElementById('copy-status');
@@ -317,220 +325,125 @@ document.getElementById('copy-table').addEventListener('click', () => {
 renderOutput();
 
 
-/
-/* ---------------------------------------------------------
-   EXTRAÇÃO SIMPLES DE PN E DESCRIÇÃO TÉCNICA
---------------------------------------------------------- */
-(function initPdfExtractor() {
+/* ---------------------------------------------------------------------
+   EXTRAÇÃO DE PDF — somente PN + descrição em bullet points
+--------------------------------------------------------------------- */
+(function initPdfExtractor(){
   const fileInput = document.getElementById('pdf-input');
-  if (!fileInput) return;
-
+  if(!fileInput) return;
   const extractBtn = document.getElementById('extract-pdf');
   const status = document.getElementById('pdf-status');
   const editor = document.getElementById('pdf-editor');
-  const output = document.getElementById('pdf-formatted-text');
+  const tableBody = document.getElementById('proposal-table-body');
+  const table = document.getElementById('proposal-table');
   const copyBtn = document.getElementById('copy-pdf-text');
   const copyStatus = document.getElementById('pdf-copy-status');
 
-  if (window.pdfjsLib) {
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  if(window.pdfjsLib){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   }
 
-  function clean(text) {
-    return String(text || '').replace(/\s+/g, ' ').trim();
-  }
+  function clean(text){ return String(text || '').replace(/\s+/g,' ').trim(); }
 
-  async function extractLines(file) {
-    if (!window.pdfjsLib) {
-      throw new Error('PDF.js não carregou. Verifique sua conexão.');
-    }
-
-    const pdf = await pdfjsLib.getDocument({
-      data: await file.arrayBuffer()
-    }).promise;
-
+  async function extractLines(file){
+    if(!window.pdfjsLib) throw new Error('A biblioteca PDF.js não carregou. Verifique a conexão com a internet.');
+    const pdf = await pdfjsLib.getDocument({data: await file.arrayBuffer()}).promise;
     const lines = [];
-
-    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-      const page = await pdf.getPage(pageNumber);
+    for(let pageNo=1; pageNo<=pdf.numPages; pageNo++){
+      const page = await pdf.getPage(pageNo);
       const content = await page.getTextContent();
-      const grouped = [];
-
-      content.items.forEach(item => {
-        if (!item.str || !item.str.trim()) return;
-
-        const x = item.transform[4];
-        const y = item.transform[5];
-
-        let line = grouped.find(
-          entry => Math.abs(entry.y - y) < 2.2
-        );
-
-        if (!line) {
-          line = { y, parts: [] };
-          grouped.push(line);
-        }
-
-        line.parts.push({ x, text: item.str });
+      const groups = [];
+      content.items.forEach(item=>{
+        if(!item.str || !item.str.trim()) return;
+        const x = item.transform[4], y = item.transform[5];
+        let group = groups.find(g=>Math.abs(g.y-y)<2.5);
+        if(!group){group={y,parts:[]};groups.push(group);}
+        group.parts.push({x,text:item.str});
       });
-
-      grouped.sort((a, b) => b.y - a.y);
-
-      grouped.forEach(line => {
-        line.parts.sort((a, b) => a.x - b.x);
-        const text = clean(line.parts.map(p => p.text).join(' '));
-
-        if (text) lines.push(text);
+      groups.sort((a,b)=>b.y-a.y);
+      groups.forEach(g=>{
+        g.parts.sort((a,b)=>a.x-b.x);
+        const line=clean(g.parts.map(p=>p.text).join(' '));
+        if(line) lines.push(line);
       });
+      lines.push('');
     }
-
     return lines;
   }
 
-  function parseItems(lines) {
-    const items = [];
-    let current = null;
+  function parsePnLine(line){
+    const marker=line.match(/P\s*\/\s*N\s*:\s*(.*)/i);
+    if(!marker) return null;
+    const content=clean(marker[1]);
+    const match=content.match(/^(.+?)\s+-\s+\(?(.+)$/);
+    if(match) return {pn:match[1].trim(),description:match[2].replace(/[)\s]+$/,'').trim()};
+    return {pn:content,description:''};
+  }
 
-    function finishItem() {
-      if (!current) return;
-
-      const description = current.description
-        .join(' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-      // Cada vírgula separa uma especificação técnica.
-      const bullets = description
-        .split(/,\s*/)
-        .map(text => text.replace(/^[•●▪\-–]\s*/, '').trim())
-        .filter(Boolean);
-
-      items.push({
-        pn: current.pn,
-        bullets
-      });
-
-      current = null;
+  function parseItems(lines){
+    const items=[]; let current=null;
+    const stop=/^(?:NOTAS\/DESVIOS|CONTATOS|ÍNDICE(?:\s|$)|ÍNDICE DE REVISÕES|ATENCIOSAMENTE|DOCUMENTOS DE REFERÊNCIA|ESCOPO DE FORNECIMENTO|TOTAL GERAL|CLASSIFICAÇÃO FISCAL:|ESTAMOS CONSIDERANDO|VER DESVIOS|ITEM SOLICITADO:|ITEM ORÇADO:)/i;
+    function finish(){
+      if(!current) return;
+      const text=clean(current.description.join(' ')).replace(/^[\s(]+/,'').replace(/[\s),]+$/,'');
+      current.bullets=text.split(/,\s*/).map(x=>x.replace(/^[•●▪\-–]\s*/,'').trim()).filter(Boolean);
+      if(current.pn && current.bullets.length) items.push(current);
+      current=null;
     }
-
-    for (const line of lines) {
-      // Localiza o PN no início da identificação do item.
-      const match = line.match(/P\s*\/\s*N\s*:\s*(.+)/i);
-
-      if (match) {
-        finishItem();
-
-        let content = clean(match[1]);
-        let pn = '';
-        let description = '';
-
-        // Formato comum: PN - (descrição técnica...)
-        const separator = content.match(/\s+-\s+\(/);
-
-        if (separator) {
-          const pos = separator.index;
-          pn = content.slice(0, pos).trim();
-          description = content.slice(pos + separator[0].length).trim();
-        } else {
-          // Alternativa: PN seguido de hífen e descrição.
-          const alternative = content.match(/^(.+?)\s+-\s+(.+)$/);
-
-          if (alternative) {
-            pn = alternative[1].trim();
-            description = alternative[2].trim();
-          } else {
-            pn = content;
-          }
-        }
-
-        current = {
-          pn,
-          description: description ? [description] : []
-        };
-
-        continue;
-      }
-
-      if (!current) continue;
-
-      // Ignora cabeçalhos e rodapés comuns.
-      if (
-        /^(?:PROPOSTA TÉCNICA|Rua |CEP:|Tel\.?:|www\.|Índice|Índice de Revisões|Notas\/Desvios|Contatos|Atenciosamente)/i.test(line) ||
-        /^\d+\s*\/\s*\d+$/.test(line)
-      ) {
-        continue;
-      }
-
-      // Termina o item quando começa outra seção.
-      if (/^(?:ITEM SOLICITADO:|ITEM ORÇADO:|VER DESVIOS|NOTAS\/DESVIOS)/i.test(line)) {
-        finishItem();
-        continue;
-      }
-
+    for(const raw of lines){
+      const line=clean(raw); if(!line) continue;
+      const parsed=parsePnLine(line);
+      if(parsed){finish();current={pn:parsed.pn,description:parsed.description?[parsed.description]:[],qty:'01'};continue;}
+      if(!current) continue;
+      if(stop.test(line) || /^(?:PROPOSTA TÉCNICA|Rua |CEP:|Tel\.?\s*:|www\.|Pág(?:ina)?\.?\s*\d+)/i.test(line) || /^\d+\s*\/\s*\d+$/.test(line)) continue;
       current.description.push(line);
     }
-
-    finishItem();
-    return items;
+    finish(); return items;
   }
 
-  function formatItems(items) {
-    return items.map(item => {
-      const lines = ['PN: ' + item.pn, ''];
-
-      item.bullets.forEach(spec => {
-        lines.push('• ' + spec);
-      });
-
-      return lines.join('\n');
-    }).join('\n\n');
+  function renderTable(items){
+    tableBody.innerHTML='';
+    items.forEach((item,index)=>{
+      const row=document.createElement('tr');
+      const itemCell=document.createElement('td'); itemCell.className='item-column'; itemCell.textContent=String(index+1);
+      const descCell=document.createElement('td'); descCell.className='description-column';
+      const pn=document.createElement('strong'); pn.textContent=item.pn; descCell.appendChild(pn);
+      const list=document.createElement('ul'); list.className='specification-list';
+      item.bullets.forEach(spec=>{const li=document.createElement('li');li.textContent=spec;list.appendChild(li);});
+      descCell.appendChild(list);
+      const qtyCell=document.createElement('td'); qtyCell.className='qty-column'; qtyCell.textContent=item.qty || '01';
+      row.appendChild(itemCell);row.appendChild(descCell);row.appendChild(qtyCell);tableBody.appendChild(row);
+    });
   }
 
-  extractBtn.addEventListener('click', async () => {
-    const file = fileInput.files && fileInput.files[0];
-
-    if (!file) {
-      status.className = 'err';
-      status.textContent = 'Selecione um PDF.';
-      return;
-    }
-
-    extractBtn.disabled = true;
-    status.className = '';
-    status.textContent = 'Extraindo PN e descrição...';
-
-    try {
-      const lines = await extractLines(file);
-      const items = parseItems(lines);
-
-      output.value = formatItems(items);
-      editor.classList.remove('hidden');
-
-      status.className = items.length ? 'ok' : 'err';
-      status.textContent = items.length
-        ? items.length + ' item(ns) extraído(s). Confira o resultado.'
-        : 'Nenhum PN identificado. Verifique se o PDF contém texto selecionável e utiliza o marcador P/N:.';
-    } catch (error) {
-      status.className = 'err';
-      status.textContent = 'Erro na extração: ' + error.message;
-    } finally {
-      extractBtn.disabled = false;
-    }
+  extractBtn.addEventListener('click',async()=>{
+    const file=fileInput.files && fileInput.files[0];
+    if(!file){status.className='err';status.textContent='Selecione um arquivo PDF.';return;}
+    extractBtn.disabled=true;status.className='';status.textContent='Extraindo PN e descrição...';
+    try{
+      const items=parseItems(await extractLines(file));
+      renderTable(items);editor.classList.remove('hidden');
+      status.className=items.length?'ok':'err';
+      status.textContent=items.length?items.length+' item(ns) identificado(s). Confira a tabela.':'Nenhum PN com descrição foi identificado. O PDF precisa conter texto selecionável e o marcador P/N:.';
+    }catch(err){status.className='err';status.textContent='Erro ao extrair o PDF: '+err.message;}
+    finally{extractBtn.disabled=false;}
   });
 
-  copyBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(output.value);
-      copyStatus.textContent = 'Texto copiado.';
-    } catch (error) {
-      output.focus();
-      output.select();
-
-      const copied = document.execCommand('copy');
-      copyStatus.textContent = copied
-        ? 'Texto copiado.'
-        : 'Selecione o texto e pressione Ctrl+C.';
-    }
+  copyBtn.addEventListener('click',async()=>{
+    try{
+      const plain=Array.from(table.rows).map(row=>Array.from(row.cells).map(cell=>cell.innerText.trim()).join('\t')).join('\n');
+      if(navigator.clipboard && window.ClipboardItem){
+        await navigator.clipboard.write([new ClipboardItem({
+          'text/html':new Blob([table.outerHTML],{type:'text/html'}),
+          'text/plain':new Blob([plain],{type:'text/plain'})
+        })]);
+        copyStatus.textContent='Tabela copiada. Cole no Word com Ctrl+V.';
+      }else{
+        const range=document.createRange();range.selectNode(table);
+        const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);
+        const ok=document.execCommand('copy');selection.removeAllRanges();
+        copyStatus.textContent=ok?'Tabela copiada. Cole no Word com Ctrl+V.':'Selecione a tabela e pressione Ctrl+C.';
+      }
+    }catch(err){copyStatus.textContent='Não foi possível copiar automaticamente. Selecione a tabela e pressione Ctrl+C.';}
   });
 })();
