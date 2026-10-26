@@ -38,8 +38,9 @@ function escapeHtml(str){
    O site NÃO recalcula: lê os valores já calculados (em cache) pelo Excel.
 --------------------------------------------------------------------- */
 const SHEET_NAME = 'Revenda';
-const MAX_HEADER_SCAN = 60;  // quantas linhas do topo são examinadas para achar o cabeçalho
-const MAX_ITEMS = 100;       // itens lidos abaixo do cabeçalho
+const HEADER_ROW = 13;
+const FIRST_ROW = 14;
+const LAST_ROW = 113;
 const COL = {
   item: 'A',      // código do item
   desc: 'E',      // descrição
@@ -53,6 +54,7 @@ const COL = {
   unitPortal: 'Z',  // preço unitário - portal (líquido de ICMS e IPI)
   totalPortal: 'AA' // preço total - portal
 };
+const CELL_SERVICOS = 'E9';
 
 let items = [];
 let servicos = null;
@@ -71,10 +73,10 @@ function strAt(ws, addr){
   return (c && c.v != null) ? String(c.v).trim() : '';
 }
 
-/* procura uma coluna de PN nas duas linhas do cabeçalho */
-function findPnColumn(ws, headerRow){
+/* procura uma coluna de PN nas linhas de cabeçalho (12 e 13) */
+function findPnColumn(ws){
   const re = /^(pn|p\/n|part\s*number|partnumber|n[ºo°]?\s*da\s*pe[çc]a|n[úu]mero\s*da\s*pe[çc]a)$/i;
-  for(const row of [headerRow - 1, headerRow]){
+  for(const row of [HEADER_ROW - 1, HEADER_ROW]){
     for(let c = 0; c < 60; c++){
       const addr = XLSX.utils.encode_cell({r: row - 1, c: c});
       if(re.test(strAt(ws, addr))) return XLSX.utils.encode_col(c);
@@ -92,56 +94,19 @@ function findSheetName(names){
   return names.find(n => normalizeName(n) === alvo) || null;
 }
 
-/* acha a linha do cabeçalho: coluna A = "ITEM" e coluna X = "P. TOTAL" */
-function findHeaderRow(ws){
-  const ref = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
-  const ultima = ref ? Math.min(ref.e.r + 1, MAX_HEADER_SCAN) : MAX_HEADER_SCAN;
-  let soItem = null;
-  for(let r = 1; r <= ultima; r++){
-    if(normalizeName(strAt(ws, COL.item + r)) !== 'item') continue;
-    if(/total/i.test(strAt(ws, COL.totalDireta + r))) return {row: r, exato: true};
-    if(soItem === null) soItem = r;
-  }
-  return soItem !== null ? {row: soItem, exato: false} : null;
-}
-
-/* procura um rótulo acima do cabeçalho e devolve o valor da célula ao lado */
-function findLabeled(ws, re, ateLinha, numerico){
-  for(let r = 1; r <= ateLinha; r++){
-    for(let c = 0; c < 14; c++){
-      const t = strAt(ws, XLSX.utils.encode_cell({r: r - 1, c: c}));
-      if(!t || !re.test(normalizeName(t))) continue;
-      const alcance = numerico ? 4 : 1;
-      for(let k = c + 1; k <= c + alcance; k++){
-        const addr = XLSX.utils.encode_cell({r: r - 1, c: k});
-        if(numerico){ const n = numAt(ws, addr); if(n !== null) return n; }
-        else { const v = strAt(ws, addr); if(v) return v; }
-      }
-    }
-  }
-  return null;
-}
-
 function parseWorkbook(wb, sheetName){
   const warnings = [];
   const ws = wb.Sheets[sheetName];
 
-  const cab = findHeaderRow(ws);
-  if(!cab){
-    return {list: [], warnings: [], servicos: null, proposta: '', cliente: '', headerRow: null};
-  }
-  const headerRow = cab.row;
-  if(!cab.exato) warnings.push('Achei "ITEM" na linha ' + headerRow + ', mas a coluna ' + COL.totalDireta + ' não tem "P. TOTAL". Confira se as colunas leem os valores certos.');
+  const okLayout = strAt(ws, COL.item + HEADER_ROW).toUpperCase() === 'ITEM'
+    && /TOTAL/i.test(strAt(ws, COL.totalDireta + HEADER_ROW));
+  if(!okLayout) warnings.push('O cabeçalho da linha ' + HEADER_ROW + ' não parece o da planilha Ver. 3.0. Confira se as colunas leem os valores certos.');
 
-  const firstRow = headerRow + 1;
-  let lastRow = headerRow + MAX_ITEMS;
-  if(ws['!ref']) lastRow = Math.min(lastRow, XLSX.utils.decode_range(ws['!ref']).e.r + 1);
-
-  const pnCol = findPnColumn(ws, headerRow);
+  const pnCol = findPnColumn(ws);
   const list = [];
   const skipped = [];
 
-  for(let r = firstRow; r <= lastRow; r++){
+  for(let r = FIRST_ROW; r <= LAST_ROW; r++){
     const code = strAt(ws, COL.item + r);
     if(code === '') continue;
 
@@ -177,28 +142,20 @@ function parseWorkbook(wb, sheetName){
   if(!pnCol) warnings.push('Não encontrei uma coluna "PN" no cabeçalho; a descrição será usada como identificação do item.');
   skipped.forEach(s => warnings.push(s));
 
-  /* conferência: soma lida x subtotal da própria planilha (primeiro número da coluna X acima do cabeçalho) */
-  let subtotal = null;
-  for(let r = headerRow - 1; r >= Math.max(1, headerRow - 4) && subtotal === null; r--){
-    subtotal = numAt(ws, COL.totalDireta + r);
-  }
+  /* conferência: soma lida x subtotal da própria planilha (X11) */
+  const subtotal = numAt(ws, COL.totalDireta + '11');
   if(skipped.length === 0 && subtotal !== null){
     const soma = list.reduce((s, it) => s + it.totalDireta, 0);
     if(Math.abs(soma - subtotal) > 0.01) warnings.push('A soma dos itens (' + fmtBRL(soma) + ') difere do subtotal da planilha (' + fmtBRL(subtotal) + ').');
   }
 
-  /* frete ("Serviços"), proposta e cliente: achados pelo rótulo, acima do cabeçalho */
-  let serv = findLabeled(ws, /^servicos\b/, headerRow - 1, true);
-  if(serv === null) serv = numAt(ws, 'E' + (headerRow - 4));  // posição da Ver. 3.0 em relação ao cabeçalho
-
   return {
     list: list,
     warnings: warnings,
-    servicos: serv,
-    proposta: findLabeled(ws, /^proposta\b/, headerRow - 1, false) || '',
-    cliente: findLabeled(ws, /^cliente\b/, headerRow - 1, false) || '',
-    pnCol: pnCol,
-    headerRow: headerRow
+    servicos: numAt(ws, CELL_SERVICOS),
+    proposta: strAt(ws, 'E2'),
+    cliente: strAt(ws, 'E3'),
+    pnCol: pnCol
   };
 }
 
@@ -235,18 +192,10 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
     /* 2ª leitura: só a aba Revenda */
     const wb = XLSX.read(buf, {type: 'array', sheets: alvo});
     const res = parseWorkbook(wb, alvo);
-    if(res.headerRow === null){
-      items = [];
-      servicos = null;
-      statusEl.className = 'err';
-      statusEl.textContent = 'Não encontrei o cabeçalho na aba "' + alvo + '" (procurei "ITEM" na coluna ' + COL.item + ' e "P. TOTAL" na coluna ' + COL.totalDireta + ' nas primeiras ' + MAX_HEADER_SCAN + ' linhas).';
-      renderOutput();
-      return;
-    }
     items = res.list;
     servicos = res.servicos;
 
-    const partes = ['aba "' + alvo + '"', 'cabeçalho na linha ' + res.headerRow, items.length + (items.length === 1 ? ' item lido' : ' itens lidos')];
+    const partes = ['aba "' + alvo + '"', items.length + (items.length === 1 ? ' item lido' : ' itens lidos')];
     if(res.proposta) partes.push('proposta ' + res.proposta);
     if(res.cliente) partes.push('cliente ' + res.cliente);
     statusEl.className = items.length ? 'ok' : 'err';
@@ -301,14 +250,6 @@ function renderOutput(){
 
   tbody.innerHTML = rowsHtml || '<tr><td colspan="6">Escolha a planilha para carregar os itens.</td></tr>';
   document.getElementById('output-total').textContent = fmtBRL(total);
-
-  const freteRow = document.getElementById('output-frete-row');
-  if(items.length && servicos !== null && servicos > 0){
-    freteRow.classList.remove('hidden');
-    document.getElementById('output-frete-valor').textContent = fmtBRL(servicos);
-  } else {
-    freteRow.classList.add('hidden');
-  }
 
   renderOutputNotes(portal);
 }
