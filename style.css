@@ -260,3 +260,36 @@ button.secondary:hover{background:var(--teal-soft);}
 @media (max-width: 560px){
   .out-options{grid-template-columns:1fr;}
 }
+
+/* ---------------------------------------------------------------------
+   EXTRAÇÃO E EDIÇÃO LOCAL DE PDF
+--------------------------------------------------------------------- */
+.pdf-dropzone{flex-wrap:wrap;}
+.pdf-dropzone input[type=file]{flex:1; min-width:220px;}
+#pdf-status{margin-top:10px; font-family:var(--mono); font-size:12.5px; color:var(--ink-soft); white-space:pre-wrap;}
+#pdf-status.ok{color:var(--teal);}
+#pdf-status.err{color:var(--brick);}
+#pdf-editor{margin-top:22px;}
+#pdf-editor h3{font-family:var(--serif); font-size:18px; margin:22px 0 10px;}
+.pdf-fields,.pdf-item-fields{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 16px; background:var(--paper-raised); border:1px solid var(--line); border-radius:4px; padding:16px;}
+.pdf-fields label,.pdf-item-fields label{display:flex; flex-direction:column; gap:6px; color:var(--ink-soft); font-size:12.5px; min-width:0;}
+.pdf-fields input,.pdf-fields textarea,.pdf-item-fields input,.pdf-item-fields textarea{width:100%; min-width:0;}
+.pdf-fields .span-all,.pdf-item-fields .span-all{grid-column:1 / -1;}
+.pdf-items-header{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:20px;}
+.pdf-items-header h3{margin:0;}
+.pdf-items{display:grid; gap:12px; margin-top:12px;}
+.pdf-item-card{border:1px solid var(--line); border-radius:4px; background:var(--paper-raised); padding:14px;}
+.pdf-item-top{display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;}
+.pdf-item-fields{border:0; padding:0;}
+.text-button{background:transparent; color:var(--brick); padding:4px 8px; font-size:12px;}
+.formatted-text{display:block; width:100%; font-family:var(--mono); font-size:13px; line-height:1.6; white-space:pre-wrap;}
+.pdf-actions{display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:12px;}
+#pdf-copy-status{font-size:12.5px; color:var(--teal);}
+.raw-details{margin-top:20px; border-top:1px solid var(--line); padding-top:14px;}
+.raw-details summary{cursor:pointer; color:var(--ink-soft); font-size:13px;}
+.raw-details textarea{display:block; width:100%; margin-top:10px; font-family:var(--mono); font-size:12px;}
+@media (max-width:560px){
+  .pdf-fields,.pdf-item-fields{grid-template-columns:1fr;}
+  .pdf-fields .span-all,.pdf-item-fields .span-all{grid-column:auto;}
+  .pdf-items-header{align-items:flex-start; flex-direction:column;}
+}

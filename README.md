@@ -7,7 +7,7 @@ pronta para copiar e colar no Word.
 ## Como usar
 1. Abra o site e escolha o arquivo Excel (aba "Revenda").
 2. Confira os itens lidos e os avisos exibidos.
-3. Em "Receita Bruta e Petronect", escolha o preço (Revenda direta ou Portal), o estado
+3. Em "Opções da tabela", escolha o preço (Revenda direta ou Portal), o estado
    do cliente, como o IPI aparece e se o destino é Zona Franca de Manaus.
 4. Clique em "Copiar tabela" e cole (Ctrl+V) no Word.
 
@@ -47,3 +47,9 @@ Settings → Pages (branch `main`, pasta `/ (root)`).
   estar online.
 - O frete não é exibido na tabela copiada. A formatação da tabela copiada segue o documento original (Open Sans, 8 pt,
   linhas horizontais finas, alinhamento centralizado, linhas de 2 cm).
+
+
+## Extrair e formatar propostas em PDF
+Na seção **Extrair e formatar PDF**, selecione o PDF e clique em **Extrair conteúdo**. O navegador lê o arquivo localmente usando PDF.js, tenta identificar dados gerais e itens com `P/N`, e apresenta campos editáveis e um texto formatado que pode ser copiado. É possível editar os campos, remover itens identificados incorretamente e adicionar itens manualmente.
+
+**Privacidade e limitações:** o conteúdo do PDF não é enviado a um serviço de interpretação; a biblioteca PDF.js é carregada por CDN, portanto é necessária conexão à internet para carregar a biblioteca. Esta versão extrai texto incorporado no PDF, mas não executa OCR em páginas que sejam apenas imagens. A identificação automática é heurística, não uma interpretação garantida: revise especialmente descrições extensas, quantidades, valores e impostos antes de usar o resultado.

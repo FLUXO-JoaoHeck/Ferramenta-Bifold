@@ -42,17 +42,17 @@ const HEADER_ROW = 13;
 const FIRST_ROW = 14;
 const LAST_ROW = 113;
 const COL = {
-  item: 'A',      // código do item
-  desc: 'E',      // descrição
-  ncm: 'G',       // NCM
-  qtd: 'P',       // quantidade
-  icms: 'R',      // ICMS de saída (%)
-  pisCofins: 'S', // PIS/COFINS de saída (%)
-  ipi: 'T',       // IPI de saída (%)
-  unitDireta: 'W',  // preço unitário - revenda direta (receita bruta s/ IPI)
-  totalDireta: 'X', // preço total - revenda direta
-  unitPortal: 'Z',  // preço unitário - portal (líquido de ICMS e IPI)
-  totalPortal: 'AA' // preço total - portal
+  item: 'A',
+  desc: 'E',
+  ncm: 'G',
+  qtd: 'P',
+  icms: 'R',
+  pisCofins: 'S',
+  ipi: 'T',
+  unitDireta: 'W',
+  totalDireta: 'X',
+  unitPortal: 'Z',
+  totalPortal: 'AA'
 };
 const CELL_SERVICOS = 'E9';
 
@@ -158,7 +158,6 @@ function parseWorkbook(wb, sheetName){
     pnCol: pnCol
   };
 }
-
 document.getElementById('xlsx-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   const statusEl = document.getElementById('upload-status');
@@ -177,7 +176,7 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
   try{
     const buf = await file.arrayBuffer();
 
-    /* 1ª leitura: só os nomes das abas (rápida, mesmo com abas grandes) */
+    /* 1ª leitura: só os nomes das abas */
     const nomes = XLSX.read(buf, {type: 'array', bookSheets: true}).SheetNames;
     const alvo = findSheetName(nomes);
     if(!alvo){
@@ -210,7 +209,7 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
 });
 
 /* ---------------------------------------------------------------------
-   TABELA DE SAÍDA — Item | Modelo | Qtd | NCM | Preço Unitário | Preço Total
+   TABELA DE SAÍDA
 --------------------------------------------------------------------- */
 function groupByRate(list, key){
   const map = new Map();
@@ -221,6 +220,7 @@ function groupByRate(list, key){
   });
   return Array.from(map.entries()).map(([rate, nums]) => ({rate, nums}));
 }
+
 function describeRates(list, key){
   const groups = groupByRate(list, key);
   if(groups.length === 1) return fmtPct(groups[0].rate);
@@ -254,7 +254,7 @@ function renderOutput(){
   renderOutputNotes(portal);
 }
 
-/* bullets de impostos (alíquotas de saída lidas da planilha), estado e Zona Franca */
+/* impostos, estado e Zona Franca */
 function renderOutputNotes(portal){
   const ncms = [];
   items.forEach(it => {
@@ -278,7 +278,7 @@ function renderOutputNotes(portal){
   const estado = document.getElementById('opt-estado').value.trim();
   const estadoItem = document.getElementById('output-estado-item');
   if(estado){
-    estadoItem.textContent = 'Estamos considerando que o cliente é contribuinte de ICMS no estado do ' + estado + ';';
+    estadoItem.textContent = 'Consideramos a compradora contribuinte de ICMS no estado de ' + estado + ';';
     estadoItem.classList.remove('hidden');
   } else {
     estadoItem.classList.add('hidden');
@@ -294,7 +294,7 @@ function renderOutputNotes(portal){
 });
 
 /* ---------------------------------------------------------------------
-   COPIAR TABELA — seleciona e copia mantendo a formatação (cola no Word)
+   COPIAR TABELA — mantém a formatação ao colar no Word
 --------------------------------------------------------------------- */
 document.getElementById('copy-table').addEventListener('click', () => {
   const statusEl = document.getElementById('copy-status');
@@ -315,3 +315,358 @@ document.getElementById('copy-table').addEventListener('click', () => {
 });
 
 renderOutput();
+
+/* ---------------------------------------------------------------------
+   EXTRAÇÃO LOCAL DE PDF
+   O arquivo é lido no navegador com PDF.js; não é enviado a um servidor.
+   PDFs digitalizados (somente imagem) exigem OCR, que não está incluído.
+--------------------------------------------------------------------- */
+(function initPdfExtractor(){
+  const fileInput = document.getElementById('pdf-input');
+  if(!fileInput) return;
+  const extractBtn = document.getElementById('extract-pdf');
+  const status = document.getElementById('pdf-status');
+  const editor = document.getElementById('pdf-editor');
+  const itemsHost = document.getElementById('pdf-items');
+  const formatted = document.getElementById('pdf-formatted-text');
+  const rawText = document.getElementById('pdf-raw-text');
+  let extractedItems = [];
+
+  if(window.pdfjsLib){
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  function clean(s){ return String(s || '').replace(/\s+/g, ' ').trim(); }
+  function normalizeLine(s){ return clean(s).replace(/\s+([,.;:])/g, '$1'); }
+  function parseMoney(s){ return String(s || '').replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, ''); }
+  function field(id){ return document.getElementById(id).value.trim(); }
+
+  async function extractLines(file){
+    if(!window.pdfjsLib) throw new Error('A biblioteca PDF.js não carregou. Verifique a conexão com a internet e tente novamente.');
+    const buffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buffer}).promise;
+    const lines = [];
+
+    for(let pageNum = 1; pageNum <= pdf.numPages; pageNum++){
+      const page = await pdf.getPage(pageNum);
+      const content = await page.getTextContent();
+      const grouped = [];
+
+      content.items.forEach(item => {
+        if(!item.str || !item.str.trim()) return;
+        const x = item.transform ? item.transform[4] : 0;
+        const y = item.transform ? item.transform[5] : 0;
+        let line = grouped.find(g => Math.abs(g.y - y) < 2.2);
+        if(!line){ line = {y:y, parts:[]}; grouped.push(line); }
+        line.parts.push({x:x, text:item.str});
+      });
+
+      grouped.sort((a,b) => b.y-a.y);
+      grouped.forEach(line => {
+        line.parts.sort((a,b) => a.x-b.x);
+        const text = normalizeLine(line.parts.map(p => p.text).join(' '));
+        if(text) lines.push(text);
+      });
+      lines.push('');
+    }
+    return lines;
+  }
+  function findMatch(lines, regex){
+    const line = lines.find(l => regex.test(l));
+    if(!line) return '';
+    const match = line.match(regex);
+    return match && match[1] ? clean(match[1]) : '';
+  }
+
+  function parsePdfText(lines){
+    const all = lines.join('\n');
+
+    const proposal = (all.match(/Rotork\s+Quotation\s*[-–]\s*([^\s\n]+)/i)
+      || all.match(/Nossa refer[êe]ncia:\s*([^\n]+)/i)
+      || [,''])[1].trim();
+
+    const date = findMatch(lines, /Data:\s*(.+)$/i);
+    const validity = findMatch(lines, /Expira[çc][ãa]o da cota[çc][ãa]o:\s*(.+)$/i);
+    const payment = lines.find(l => /^(100%|\d+%).*DDL.*$/i.test(l)) || '';
+    const delivery = findMatch(lines, /^(\d+\s*dias[^\n]*)$/i);
+    const client = lines.find(l => /LTDA\.?/i.test(l) && !/ROTORK/i.test(l)) || '';
+    const ncm = findMatch(lines, /Classifica[çc][ãa]o fiscal:\s*(.+)$/i);
+
+    const taxLines = lines.filter(l =>
+      /^(?:Classifica[çc][ãa]o fiscal:|[-–]\s*(?:PIS|COFINS|ICMS|IPI):|Estamos considerando)/i.test(l)
+    );
+
+    const totalLine = [...lines].reverse().find(l =>
+      /Total Geral/i.test(l) || /^Total\s*$/i.test(l)
+    );
+
+    let grandTotal = '';
+    for(let i = lines.length - 1; i >= 0; i--){
+      const m = lines[i].match(/(?:BRL|R\$)\s*([\d.,]+)/i);
+      if(m){ grandTotal = m[1]; break; }
+    }
+
+    if(!grandTotal && totalLine){
+      const m = totalLine.match(/([\d.]+,\d{2}|\d{1,3}(?:,\d{3})*\.\d{2})\s*$/);
+      if(m) grandTotal = m[1];
+    }
+
+    const parsedItems = [];
+    let current = null;
+    const pnRe = /^P\s*\/\s*N\s*:\s*(.+)$/i;
+
+    const stopRe = /^(?:Instruments?:|Total Geral|Classifica[çc][ãa]o fiscal:|[-–]\s*(?:PIS|COFINS|ICMS|IPI):|Estamos considerando|\d+\s+of\s+\d+)\b/i;
+
+    lines.forEach(line => {
+      const pnMatch = line.match(pnRe);
+
+      if(pnMatch){
+        if(current) parsedItems.push(current);
+
+        let rest = clean(pnMatch[1]);
+        let qty = '', unit = '', total = '';
+
+        const moneyTail = rest.match(/\s+(\d+(?:[.,]\d+)?)\s+([\d.,]+)\s+([\d.,]+)\s*$/);
+
+        if(moneyTail){
+          qty = moneyTail[1];
+          unit = moneyTail[2];
+          total = moneyTail[3];
+          rest = rest.slice(0, moneyTail.index).trim();
+        }
+
+        const split = rest.match(/^(.+?)\s*[–-]\s*\((.*)$/);
+        const pn = split
+          ? split[1].trim()
+          : rest.split(/\s+[–-]\s+/)[0].trim();
+
+        let desc = split
+          ? '(' + split[2]
+          : rest.slice(pn.length).replace(/^\s*[–-]\s*/, '').trim();
+
+        current = {
+          pn: pn,
+          description: desc,
+          qty: qty,
+          unit: unit,
+          total: total
+        };
+        return;
+      }
+
+      if(current){
+        if(stopRe.test(line)){
+          parsedItems.push(current);
+          current = null;
+          return;
+        }
+
+        if(line && !/^Rotork Quotation/i.test(line) && !/^\d+\s+of\s+\d+$/i.test(line)){
+          current.description = clean(current.description + ' ' + line);
+        }
+      }
+    });
+
+    if(current) parsedItems.push(current);
+
+    const usefulItems = parsedItems.filter(it =>
+      it.pn && (it.description || it.qty || it.unit || it.total)
+    );
+
+    return {
+      proposal: proposal,
+      client: client,
+      date: date,
+      validity: validity,
+      payment: payment,
+      delivery: delivery,
+      ncm: ncm,
+      grandTotal: grandTotal,
+      tax: taxLines.join('\n'),
+      items: usefulItems,
+      raw: all
+    };
+  }
+
+  function setField(id, value){
+    document.getElementById(id).value = value || '';
+  }
+
+  function renderItems(){
+    itemsHost.innerHTML = extractedItems.map((it, idx) => `
+      <article class="pdf-item-card" data-index="${idx}">
+        <div class="pdf-item-top">
+          <strong>Item ${idx+1}</strong>
+          <button type="button" class="text-button remove-pdf-item" data-index="${idx}">Remover</button>
+        </div>
+        <div class="pdf-item-fields">
+          <label>Part number
+            <input data-field="pn" data-index="${idx}" value="${escapeHtml(it.pn)}">
+          </label>
+          <label>Quantidade
+            <input data-field="qty" data-index="${idx}" value="${escapeHtml(it.qty)}">
+          </label>
+          <label>Preço unitário
+            <input data-field="unit" data-index="${idx}" value="${escapeHtml(it.unit)}">
+          </label>
+          <label>Valor total
+            <input data-field="total" data-index="${idx}" value="${escapeHtml(it.total)}">
+          </label>
+          <label class="span-all">Descrição técnica
+            <textarea data-field="description" data-index="${idx}" rows="5">${escapeHtml(it.description)}</textarea>
+          </label>
+        </div>
+      </article>`).join('');
+
+    itemsHost.querySelectorAll('[data-field]').forEach(el =>
+      el.addEventListener('input', () => {
+        const idx = Number(el.dataset.index);
+        extractedItems[idx][el.dataset.field] = el.value;
+        buildFormattedText();
+      })
+    );
+
+    itemsHost.querySelectorAll('.remove-pdf-item').forEach(btn =>
+      btn.addEventListener('click', () => {
+        extractedItems.splice(Number(btn.dataset.index), 1);
+        renderItems();
+        buildFormattedText();
+      })
+    );
+  }
+
+  function buildFormattedText(){
+    const lines = [];
+    const proposal = field('pdf-proposal');
+
+    if(proposal) lines.push('PROPOSTA: ' + proposal);
+    if(field('pdf-client')) lines.push('CLIENTE: ' + field('pdf-client'));
+    if(field('pdf-date')) lines.push('DATA: ' + field('pdf-date'));
+    if(field('pdf-validity')) lines.push('VALIDADE: ' + field('pdf-validity'));
+    if(field('pdf-payment')) lines.push('CONDIÇÕES DE PAGAMENTO: ' + field('pdf-payment'));
+    if(field('pdf-delivery')) lines.push('PRAZO DE ENTREGA: ' + field('pdf-delivery'));
+    if(field('pdf-ncm')) lines.push('CLASSIFICAÇÃO FISCAL / NCM: ' + field('pdf-ncm'));
+
+    if(field('pdf-tax')){
+      lines.push('\nIMPOSTOS E OBSERVAÇÕES FISCAIS\n' + field('pdf-tax'));
+    }
+
+    if(extractedItems.length){
+      lines.push('\nITENS DA PROPOSTA');
+
+      extractedItems.forEach((it, idx) => {
+        lines.push('\nITEM ' + (idx+1));
+        if(it.pn) lines.push('Part number: ' + it.pn);
+        if(it.description) lines.push('Descrição: ' + it.description);
+        if(it.qty) lines.push('Quantidade: ' + it.qty);
+        if(it.unit) lines.push('Preço unitário: ' + it.unit);
+        if(it.total) lines.push('Valor total do item: ' + it.total);
+      });
+    }
+
+    if(field('pdf-grand-total')){
+      lines.push('\nVALOR TOTAL DA PROPOSTA: ' + field('pdf-grand-total'));
+    }
+
+    formatted.value = lines.join('\n');
+  }
+
+  document.getElementById('extract-pdf').addEventListener('click', async () => {
+    const file = fileInput.files && fileInput.files[0];
+
+    if(!file){
+      status.className = 'err';
+      status.textContent = 'Selecione um arquivo PDF antes de extrair.';
+      return;
+    }
+
+    if(!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf'){
+      status.className = 'err';
+      status.textContent = 'O arquivo selecionado não parece ser um PDF.';
+      return;
+    }
+
+    status.className = '';
+    status.textContent = 'Lendo o PDF localmente no navegador...';
+    extractBtn.disabled = true;
+
+    try{
+      const lines = await extractLines(file);
+      const result = parsePdfText(lines);
+
+      setField('pdf-proposal', result.proposal);
+      setField('pdf-client', result.client);
+      setField('pdf-date', result.date);
+      setField('pdf-validity', result.validity);
+      setField('pdf-payment', result.payment);
+      setField('pdf-delivery', result.delivery);
+      setField('pdf-ncm', result.ncm);
+      setField('pdf-grand-total', result.grandTotal);
+      setField('pdf-tax', result.tax);
+
+      extractedItems = result.items;
+      rawText.value = result.raw;
+      editor.classList.remove('hidden');
+
+      renderItems();
+      buildFormattedText();
+
+      status.className = result.raw.trim() ? 'ok' : 'err';
+      status.textContent = result.raw.trim()
+        ? 'Extração concluída: ' + lines.filter(Boolean).length + ' linhas de texto e ' + extractedItems.length + ' item(ns) identificados. Revise os campos antes de copiar.'
+        : 'Não foi possível extrair texto. O PDF pode ser digitalizado como imagem; esta versão não inclui OCR.';
+
+    } catch(err){
+      status.className = 'err';
+      status.textContent = 'Não foi possível ler o PDF: ' + err.message;
+    } finally {
+      extractBtn.disabled = false;
+    }
+  });
+
+  document.getElementById('add-pdf-item').addEventListener('click', () => {
+    extractedItems.push({
+      pn: '',
+      description: '',
+      qty: '',
+      unit: '',
+      total: ''
+    });
+    renderItems();
+    buildFormattedText();
+  });
+
+  [
+    'pdf-proposal',
+    'pdf-client',
+    'pdf-date',
+    'pdf-validity',
+    'pdf-payment',
+    'pdf-delivery',
+    'pdf-ncm',
+    'pdf-grand-total',
+    'pdf-tax'
+  ].forEach(id => {
+    document.getElementById(id).addEventListener('input', buildFormattedText);
+  });
+
+  document.getElementById('copy-pdf-text').addEventListener('click', async () => {
+    const copyStatus = document.getElementById('pdf-copy-status');
+
+    try{
+      await navigator.clipboard.writeText(formatted.value);
+      copyStatus.textContent = 'Texto copiado.';
+    } catch(err){
+      formatted.focus();
+      formatted.select();
+      const ok = document.execCommand('copy');
+      copyStatus.textContent = ok
+        ? 'Texto copiado.'
+        : 'Selecione o texto e use Ctrl+C.';
+    }
+
+    setTimeout(() => {
+      copyStatus.textContent = '';
+    }, 3500);
+  });
+})();
