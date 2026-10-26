@@ -317,11 +317,10 @@ document.getElementById('copy-table').addEventListener('click', () => {
 renderOutput();
 
 
-/* ---------------------------------------------------------------------
-   EXTRAÇÃO LOCAL DE PDF
-   Extrai exclusivamente o PN e a descrição técnica.
-   Cada especificação separada por vírgula vira um bullet point.
---------------------------------------------------------------------- */
+/
+/* ---------------------------------------------------------
+   EXTRAÇÃO SIMPLES DE PN E DESCRIÇÃO TÉCNICA
+--------------------------------------------------------- */
 (function initPdfExtractor() {
   const fileInput = document.getElementById('pdf-input');
   if (!fileInput) return;
@@ -329,11 +328,9 @@ renderOutput();
   const extractBtn = document.getElementById('extract-pdf');
   const status = document.getElementById('pdf-status');
   const editor = document.getElementById('pdf-editor');
-  const itemsHost = document.getElementById('pdf-items');
-  const formatted = document.getElementById('pdf-formatted-text');
-  const rawText = document.getElementById('pdf-raw-text');
-
-  let extractedItems = [];
+  const output = document.getElementById('pdf-formatted-text');
+  const copyBtn = document.getElementById('copy-pdf-text');
+  const copyStatus = document.getElementById('pdf-copy-status');
 
   if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -341,34 +338,16 @@ renderOutput();
   }
 
   function clean(text) {
-    return String(text || '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return String(text || '').replace(/\s+/g, ' ').trim();
   }
 
-  function escapeValue(text) {
-    return String(text || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  /* ---------------------------------------------------------------
-     LEITURA DO TEXTO DO PDF
-  ---------------------------------------------------------------- */
   async function extractLines(file) {
     if (!window.pdfjsLib) {
-      throw new Error(
-        'PDF.js não carregou. Verifique a conexão com a internet.'
-      );
+      throw new Error('PDF.js não carregou. Verifique sua conexão.');
     }
 
-    const buffer = await file.arrayBuffer();
-
     const pdf = await pdfjsLib.getDocument({
-      data: buffer
+      data: await file.arrayBuffer()
     }).promise;
 
     const lines = [];
@@ -381,147 +360,93 @@ renderOutput();
       content.items.forEach(item => {
         if (!item.str || !item.str.trim()) return;
 
-        const x = item.transform ? item.transform[4] : 0;
-        const y = item.transform ? item.transform[5] : 0;
+        const x = item.transform[4];
+        const y = item.transform[5];
 
         let line = grouped.find(
           entry => Math.abs(entry.y - y) < 2.2
         );
 
         if (!line) {
-          line = {
-            y: y,
-            parts: []
-          };
+          line = { y, parts: [] };
           grouped.push(line);
         }
 
-        line.parts.push({
-          x: x,
-          text: item.str
-        });
+        line.parts.push({ x, text: item.str });
       });
 
       grouped.sort((a, b) => b.y - a.y);
 
       grouped.forEach(line => {
         line.parts.sort((a, b) => a.x - b.x);
-
-        const text = clean(
-          line.parts.map(part => part.text).join(' ')
-        );
+        const text = clean(line.parts.map(p => p.text).join(' '));
 
         if (text) lines.push(text);
       });
-
-      lines.push('');
     }
 
     return lines;
   }
 
-  /* ---------------------------------------------------------------
-     IDENTIFICA O PN E O INÍCIO DA DESCRIÇÃO
-
-     Exemplo:
-     P/N: VRT-SS-0800-030-C-C-N-U - (Alternative offering for: ...
-  ---------------------------------------------------------------- */
-  function parsePnLine(line) {
-    const marker = line.match(/P\s*\/\s*N\s*:\s*(.*)/i);
-
-    if (!marker) return null;
-
-    const content = clean(marker[1]);
-    if (!content) return null;
-
-    // Procura o separador entre o PN e a descrição.
-    const separator = content.match(/\s+[-–]\s+\(?/);
-
-    let pn = '';
-    let description = '';
-
-    if (separator) {
-      const position = separator.index;
-
-      pn = content.slice(0, position).trim();
-
-      description = content
-        .slice(position + separator[0].length)
-        .trim();
-    } else {
-      // Alternativa para PDFs que não usam " - " entre os campos.
-      const firstSpace = content.search(/\s/);
-
-      if (firstSpace === -1) {
-        pn = content;
-      } else {
-        pn = content.slice(0, firstSpace).trim();
-        description = content.slice(firstSpace).trim();
-      }
-    }
-
-    // Remove parênteses externos da descrição.
-    description = description
-      .replace(/^[\s(]+/, '')
-      .replace(/[\s)]+$/, '')
-      .trim();
-
-    if (!pn) return null;
-
-    return {
-      pn: pn,
-      description: description
-    };
-  }
-
-  /* ---------------------------------------------------------------
-     IDENTIFICA SOMENTE OS ITENS QUE CONTÊM P/N
-
-     As linhas de descrição continuam sendo adicionadas ao item atual
-     até aparecer outro P/N ou o início de outra seção do documento.
-  ---------------------------------------------------------------- */
-  function parsePdfText(lines) {
-    const parsedItems = [];
+  function parseItems(lines) {
+    const items = [];
     let current = null;
 
-    const stopSection = /^(?:NOTAS\/DESVIOS|CONTATOS|ÍNDICE(?:\s|$)|ÍNDICE DE REVISÕES|ATENCIOSAMENTE|DOCUMENTOS DE REFERÊNCIA|ESCOPO DE FORNECIMENTO|TOTAL GERAL|CLASSIFICAÇÃO FISCAL:|ESTAMOS CONSIDERANDO)/i;
-
     function finishItem() {
-      if (!current || !current.pn) {
-        current = null;
-        return;
-      }
+      if (!current) return;
 
-      // Vírgula é o separador das especificações técnicas.
-      const specs = current.description
+      const description = current.description
+        .join(' ')
         .replace(/\s+/g, ' ')
-        .replace(/^[\s(]+/, '')
-        .replace(/[\s),]+$/, '')
+        .trim();
+
+      // Cada vírgula separa uma especificação técnica.
+      const bullets = description
         .split(/,\s*/)
-        .map(spec => spec.trim())
+        .map(text => text.replace(/^[•●▪\-–]\s*/, '').trim())
         .filter(Boolean);
 
-      parsedItems.push({
+      items.push({
         pn: current.pn,
-        description: specs
+        bullets
       });
 
       current = null;
     }
 
-    for (const originalLine of lines) {
-      const line = clean(originalLine);
+    for (const line of lines) {
+      // Localiza o PN no início da identificação do item.
+      const match = line.match(/P\s*\/\s*N\s*:\s*(.+)/i);
 
-      if (!line) continue;
-
-      const parsedPn = parsePnLine(line);
-
-      if (parsedPn) {
+      if (match) {
         finishItem();
 
+        let content = clean(match[1]);
+        let pn = '';
+        let description = '';
+
+        // Formato comum: PN - (descrição técnica...)
+        const separator = content.match(/\s+-\s+\(/);
+
+        if (separator) {
+          const pos = separator.index;
+          pn = content.slice(0, pos).trim();
+          description = content.slice(pos + separator[0].length).trim();
+        } else {
+          // Alternativa: PN seguido de hífen e descrição.
+          const alternative = content.match(/^(.+?)\s+-\s+(.+)$/);
+
+          if (alternative) {
+            pn = alternative[1].trim();
+            description = alternative[2].trim();
+          } else {
+            pn = content;
+          }
+        }
+
         current = {
-          pn: parsedPn.pn,
-          description: parsedPn.description
+          pn,
+          description: description ? [description] : []
         };
 
         continue;
@@ -529,217 +454,83 @@ renderOutput();
 
       if (!current) continue;
 
-      // Não incorporar títulos de outras seções nem rodapés.
-      if (stopSection.test(line)) {
-        finishItem();
-        continue;
-      }
-
+      // Ignora cabeçalhos e rodapés comuns.
       if (
-        /^PROPOSTA TÉCNICA\b/i.test(line) ||
-        /^Rua Espírito Santo\b/i.test(line) ||
-        /^CEP:/i.test(line) ||
-        /^Tel\.?:/i.test(line) ||
-        /^www\./i.test(line) ||
-        /^\d+\s*\/\s*\d+$/.test(line) ||
-        /^Pág(?:ina)?\.?\s*\d+/i.test(line)
+        /^(?:PROPOSTA TÉCNICA|Rua |CEP:|Tel\.?:|www\.|Índice|Índice de Revisões|Notas\/Desvios|Contatos|Atenciosamente)/i.test(line) ||
+        /^\d+\s*\/\s*\d+$/.test(line)
       ) {
         continue;
       }
 
-      // Continua a descrição do item atual.
-      current.description += ' ' + line;
+      // Termina o item quando começa outra seção.
+      if (/^(?:ITEM SOLICITADO:|ITEM ORÇADO:|VER DESVIOS|NOTAS\/DESVIOS)/i.test(line)) {
+        finishItem();
+        continue;
+      }
+
+      current.description.push(line);
     }
 
     finishItem();
-
-    return parsedItems;
+    return items;
   }
 
-  /* ---------------------------------------------------------------
-     EXIBIÇÃO DOS ITENS EDITÁVEIS
-     Apenas PN e descrição técnica.
-  ---------------------------------------------------------------- */
-  function renderItems() {
-    itemsHost.innerHTML = extractedItems.map((item, index) => `
-      <article class="pdf-item-card" data-index="${index}">
-        <div class="pdf-item-top">
-          <strong>Item ${index + 1}</strong>
-          <button
-            type="button"
-            class="text-button remove-pdf-item"
-            data-index="${index}">
-            Remover
-          </button>
-        </div>
+  function formatItems(items) {
+    return items.map(item => {
+      const lines = ['PN: ' + item.pn, ''];
 
-        <div class="pdf-item-fields">
-          <label>
-            PN
-            <input
-              data-field="pn"
-              data-index="${index}"
-              value="${escapeValue(item.pn)}">
-          </label>
-
-          <label class="span-all">
-            Descrição técnica — uma especificação por linha
-            <textarea
-              data-field="description"
-              data-index="${index}"
-              rows="8">${escapeValue(item.description.join('\n'))}</textarea>
-          </label>
-        </div>
-      </article>
-    `).join('');
-
-    itemsHost.querySelectorAll('[data-field]').forEach(input => {
-      input.addEventListener('input', () => {
-        const index = Number(input.dataset.index);
-        const field = input.dataset.field;
-
-        if (field === 'pn') {
-          extractedItems[index].pn = input.value;
-        }
-
-        if (field === 'description') {
-          extractedItems[index].description = input.value
-            .split(/\r?\n|,\s*/)
-            .map(spec => spec.replace(/^[•●▪\-–]\s*/, '').trim())
-            .filter(Boolean);
-        }
-
-        buildFormattedText();
+      item.bullets.forEach(spec => {
+        lines.push('• ' + spec);
       });
-    });
 
-    itemsHost.querySelectorAll('.remove-pdf-item').forEach(button => {
-      button.addEventListener('click', () => {
-        extractedItems.splice(Number(button.dataset.index), 1);
-        renderItems();
-        buildFormattedText();
-      });
-    });
+      return lines.join('\n');
+    }).join('\n\n');
   }
 
-  /* ---------------------------------------------------------------
-     RESULTADO FINAL
-
-     Exemplo:
-     PN: VRT-SS-0800-030-C-C-N-U
-
-     Descrição:
-     • Alternative offering for: 14540-03
-     • Product: Valve - Relief Thermal
-     • Option: None
-  ---------------------------------------------------------------- */
-  function buildFormattedText() {
-    const output = [];
-
-    extractedItems.forEach((item, index) => {
-      if (index > 0) {
-        output.push('');
-        output.push('');
-      }
-
-      output.push('PN: ' + item.pn);
-      output.push('');
-      output.push('Descrição:');
-
-      item.description.forEach(specification => {
-        output.push('• ' + specification);
-      });
-    });
-
-    formatted.value = output.join('\n');
-  }
-
-  /* ---------------------------------------------------------------
-     BOTÃO DE EXTRAÇÃO
-  ---------------------------------------------------------------- */
   extractBtn.addEventListener('click', async () => {
     const file = fileInput.files && fileInput.files[0];
 
     if (!file) {
       status.className = 'err';
-      status.textContent = 'Selecione um arquivo PDF.';
+      status.textContent = 'Selecione um PDF.';
       return;
     }
 
-    status.className = '';
-    status.textContent = 'Extraindo PN e descrições técnicas...';
     extractBtn.disabled = true;
+    status.className = '';
+    status.textContent = 'Extraindo PN e descrição...';
 
     try {
       const lines = await extractLines(file);
-      extractedItems = parsePdfText(lines);
+      const items = parseItems(lines);
 
-      if (rawText) rawText.value = '';
-
+      output.value = formatItems(items);
       editor.classList.remove('hidden');
 
-      renderItems();
-      buildFormattedText();
-
-      if (extractedItems.length) {
-        status.className = 'ok';
-        status.textContent =
-          'Extração concluída: ' +
-          extractedItems.length +
-          ' item(ns) identificado(s). Revise os PNs e as especificações.';
-      } else {
-        status.className = 'err';
-        status.textContent =
-          'Nenhum PN foi identificado. Verifique se o PDF contém texto selecionável e se utiliza o formato P/N:.';
-      }
+      status.className = items.length ? 'ok' : 'err';
+      status.textContent = items.length
+        ? items.length + ' item(ns) extraído(s). Confira o resultado.'
+        : 'Nenhum PN identificado. Verifique se o PDF contém texto selecionável e utiliza o marcador P/N:.';
     } catch (error) {
       status.className = 'err';
-      status.textContent =
-        'Erro ao extrair o PDF: ' + error.message;
+      status.textContent = 'Erro na extração: ' + error.message;
     } finally {
       extractBtn.disabled = false;
     }
   });
 
-  /* Adiciona um item manualmente */
-  const addButton = document.getElementById('add-pdf-item');
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(output.value);
+      copyStatus.textContent = 'Texto copiado.';
+    } catch (error) {
+      output.focus();
+      output.select();
 
-  if (addButton) {
-    addButton.addEventListener('click', () => {
-      extractedItems.push({
-        pn: '',
-        description: []
-      });
-
-      renderItems();
-      buildFormattedText();
-    });
-  }
-
-  /* Copia somente PN e descrição formatados */
-  const copyButton = document.getElementById('copy-pdf-text');
-
-  if (copyButton) {
-    copyButton.addEventListener('click', async () => {
-      const copyStatus = document.getElementById('pdf-copy-status');
-
-      try {
-        await navigator.clipboard.writeText(formatted.value);
-        copyStatus.textContent = 'PN e descrição copiados.';
-      } catch (error) {
-        formatted.focus();
-        formatted.select();
-
-        const success = document.execCommand('copy');
-
-        copyStatus.textContent = success
-          ? 'PN e descrição copiados.'
-          : 'Selecione o texto e pressione Ctrl+C.';
-      }
-
-      setTimeout(() => {
-        copyStatus.textContent = '';
-      }, 3500);
-    });
-  }
+      const copied = document.execCommand('copy');
+      copyStatus.textContent = copied
+        ? 'Texto copiado.'
+        : 'Selecione o texto e pressione Ctrl+C.';
+    }
+  });
 })();

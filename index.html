@@ -38,49 +38,36 @@
     <ul id="upload-warnings"></ul>
   </section>
 
-  <section id="pdf-extract-step" class="wide">
-    <h2><span class="num">2</span> Extrair e formatar PDF</h2>
-    <p class="hint">Selecione uma proposta em PDF. A extração é processada no navegador; o arquivo não é enviado a um serviço de interpretação. Revise os campos identificados, pois a leitura automática pode exigir ajustes.</p>
-    <div class="dropzone pdf-dropzone">
-      <input type="file" id="pdf-input" accept="application/pdf,.pdf">
-      <button type="button" id="extract-pdf" class="secondary">Extrair conteúdo</button>
+  
+<section id="pdf-extract-step" class="wide">
+  <h2><span class="num">2</span> Extrair PN e descrição</h2>
+
+  <div class="dropzone pdf-dropzone">
+    <input type="file" id="pdf-input" accept="application/pdf,.pdf">
+    <button type="button" id="extract-pdf" class="secondary">
+      Extrair texto
+    </button>
+  </div>
+
+  <div id="pdf-status" role="status" aria-live="polite"></div>
+
+  <div id="pdf-editor" class="hidden">
+    <label for="pdf-formatted-text">Texto formatado</label>
+    <textarea
+      id="pdf-formatted-text"
+      class="formatted-text"
+      rows="18"
+      aria-label="PN e descrição formatados">
+    </textarea>
+
+    <div class="pdf-actions">
+      <button type="button" id="copy-pdf-text">
+        Copiar texto
+      </button>
+      <span id="pdf-copy-status" aria-live="polite"></span>
     </div>
-    <div id="pdf-status" role="status" aria-live="polite"></div>
-
-    <div id="pdf-editor" class="hidden">
-      <h3>Dados gerais editáveis</h3>
-      <div class="pdf-fields">
-        <label>Número da proposta<input id="pdf-proposal" type="text"></label>
-        <label>Cliente<input id="pdf-client" type="text"></label>
-        <label>Data da proposta<input id="pdf-date" type="text"></label>
-        <label>Validade<input id="pdf-validity" type="text"></label>
-        <label>Condições de pagamento<input id="pdf-payment" type="text"></label>
-        <label>Prazo de entrega<input id="pdf-delivery" type="text"></label>
-        <label>Classificação fiscal / NCM<input id="pdf-ncm" type="text"></label>
-        <label>Valor total<input id="pdf-grand-total" type="text"></label>
-        <label class="span-all">Impostos e observação fiscal<textarea id="pdf-tax" rows="3"></textarea></label>
-      </div>
-
-      <div class="pdf-items-header">
-        <h3>Itens identificados</h3>
-        <button type="button" id="add-pdf-item" class="secondary">Adicionar item</button>
-      </div>
-      <div id="pdf-items" class="pdf-items"></div>
-
-      <h3>Texto formatado (editável)</h3>
-      <p class="hint">Este texto é montado a partir dos campos acima. Você pode editá-lo diretamente e copiar o resultado.</p>
-      <textarea id="pdf-formatted-text" class="formatted-text" rows="18" aria-label="Texto extraído e formatado"></textarea>
-      <div class="pdf-actions">
-        <button type="button" id="copy-pdf-text">Copiar texto formatado</button>
-        <span id="pdf-copy-status" aria-live="polite"></span>
-      </div>
-
-      <details class="raw-details">
-        <summary>Ver texto extraído do PDF (referência)</summary>
-        <textarea id="pdf-raw-text" rows="12" readonly></textarea>
-      </details>
-    </div>
-  </section>
+  </div>
+</section>
 
   <section id="options-step">
     <h2><span class="num">3</span> Opções da tabela</h2>
