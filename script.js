@@ -55,7 +55,6 @@ const COL = {
 };
 
 let items = [];
-let servicos = null;
 
 /* células com erro (#REF!, #VALUE!...) são tratadas como vazias */
 function cellAt(ws, addr){
@@ -71,13 +70,12 @@ function strAt(ws, addr){
   return (c && c.v != null) ? String(c.v).trim() : '';
 }
 
-/* procura uma coluna de PN nas duas linhas do cabeçalho */
-function findPnColumn(ws, headerRow){
-  const re = /^(pn|p\/n|part\s*number|partnumber|n[ºo°]?\s*da\s*pe[çc]a|n[úu]mero\s*da\s*pe[çc]a)$/i;
+/* procura uma coluna pelo nome do cabeçalho (nas duas linhas do cabeçalho) */
+function findColumnByHeader(ws, headerRow, re){
   for(const row of [headerRow - 1, headerRow]){
     for(let c = 0; c < 60; c++){
       const addr = XLSX.utils.encode_cell({r: row - 1, c: c});
-      if(re.test(strAt(ws, addr))) return XLSX.utils.encode_col(c);
+      if(re.test(normalizeName(strAt(ws, addr)))) return XLSX.utils.encode_col(c);
     }
   }
   return null;
@@ -128,7 +126,7 @@ function parseWorkbook(wb, sheetName){
 
   const cab = findHeaderRow(ws);
   if(!cab){
-    return {list: [], warnings: [], servicos: null, proposta: '', cliente: '', headerRow: null};
+    return {list: [], warnings: [], proposta: '', cliente: '', headerRow: null};
   }
   const headerRow = cab.row;
   if(!cab.exato) warnings.push('Achei "ITEM" na linha ' + headerRow + ', mas a coluna ' + COL.totalDireta + ' não tem "P. TOTAL". Confira se as colunas leem os valores certos.');
@@ -137,7 +135,9 @@ function parseWorkbook(wb, sheetName){
   let lastRow = headerRow + MAX_ITEMS;
   if(ws['!ref']) lastRow = Math.min(lastRow, XLSX.utils.decode_range(ws['!ref']).e.r + 1);
 
-  const pnCol = findPnColumn(ws, headerRow);
+  const descCol = findColumnByHeader(ws, headerRow, /^descricao$/);
+  if(!descCol) warnings.push('Não encontrei a coluna "DESCRIÇÃO" no cabeçalho; usei a coluna ' + COL.desc + '.');
+  const nomeCol = descCol || COL.desc;
   const list = [];
   const skipped = [];
 
@@ -160,8 +160,7 @@ function parseWorkbook(wb, sheetName){
 
     list.push({
       code: code,
-      pn: pnCol ? strAt(ws, pnCol + r) : '',
-      desc: strAt(ws, COL.desc + r),
+      desc: strAt(ws, nomeCol + r),
       ncm: strAt(ws, COL.ncm + r),
       qtd: qtd,
       icms: (numAt(ws, COL.icms + r) || 0) * 100,
@@ -174,7 +173,6 @@ function parseWorkbook(wb, sheetName){
     });
   }
 
-  if(!pnCol) warnings.push('Não encontrei uma coluna "PN" no cabeçalho; a descrição será usada como identificação do item.');
   skipped.forEach(s => warnings.push(s));
 
   /* conferência: soma lida x subtotal da própria planilha (primeiro número da coluna X acima do cabeçalho) */
@@ -187,17 +185,13 @@ function parseWorkbook(wb, sheetName){
     if(Math.abs(soma - subtotal) > 0.01) warnings.push('A soma dos itens (' + fmtBRL(soma) + ') difere do subtotal da planilha (' + fmtBRL(subtotal) + ').');
   }
 
-  /* frete ("Serviços"), proposta e cliente: achados pelo rótulo, acima do cabeçalho */
-  let serv = findLabeled(ws, /^servicos\b/, headerRow - 1, true);
-  if(serv === null) serv = numAt(ws, 'E' + (headerRow - 4));  // posição da Ver. 3.0 em relação ao cabeçalho
-
+  /* proposta e cliente: achados pelo rótulo, acima do cabeçalho */
   return {
     list: list,
     warnings: warnings,
-    servicos: serv,
     proposta: findLabeled(ws, /^proposta\b/, headerRow - 1, false) || '',
     cliente: findLabeled(ws, /^cliente\b/, headerRow - 1, false) || '',
-    pnCol: pnCol,
+    descCol: nomeCol,
     headerRow: headerRow
   };
 }
@@ -225,7 +219,6 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
     const alvo = findSheetName(nomes);
     if(!alvo){
       items = [];
-      servicos = null;
       statusEl.className = 'err';
       statusEl.textContent = 'Não encontrei a aba "' + SHEET_NAME + '" neste arquivo. Abas encontradas: ' + nomes.join(', ') + '.';
       renderOutput();
@@ -237,14 +230,12 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
     const res = parseWorkbook(wb, alvo);
     if(res.headerRow === null){
       items = [];
-      servicos = null;
       statusEl.className = 'err';
       statusEl.textContent = 'Não encontrei o cabeçalho na aba "' + alvo + '" (procurei "ITEM" na coluna ' + COL.item + ' e "P. TOTAL" na coluna ' + COL.totalDireta + ' nas primeiras ' + MAX_HEADER_SCAN + ' linhas).';
       renderOutput();
       return;
     }
     items = res.list;
-    servicos = res.servicos;
 
     const partes = ['aba "' + alvo + '"', 'cabeçalho na linha ' + res.headerRow, items.length + (items.length === 1 ? ' item lido' : ' itens lidos')];
     if(res.proposta) partes.push('proposta ' + res.proposta);
@@ -287,11 +278,10 @@ function renderOutput(){
     const unit = portal ? it.unitPortal : it.unitDireta;
     const tot = portal ? it.totalPortal : it.totalDireta;
     total += tot;
-    const nome = it.pn || it.desc || ('Item ' + it.code);
-    const sub = it.pn ? it.desc : '';
+    const nome = it.desc || ('Item ' + it.code);
     return '<tr>' +
       '<td>' + (idx + 1) + '</td>' +
-      '<td class="left"><strong>' + escapeHtml(nome) + '</strong>' + (sub ? '<br>' + escapeHtml(sub) : '') + '</td>' +
+      '<td class="left"><strong>' + escapeHtml(nome) + '</strong></td>' +
       '<td>' + it.qtd + '</td>' +
       '<td>' + escapeHtml(it.ncm || '—') + '</td>' +
       '<td>' + fmtBRL(unit) + '</td>' +
@@ -345,11 +335,11 @@ function renderOutputNotes(portal){
 });
 
 /* ---------------------------------------------------------------------
-   COPIAR TABELA — seleciona e copia mantendo a formatação (cola no Word)
+   COPIAR — seleciona o bloco e copia mantendo a formatação (cola no Word)
 --------------------------------------------------------------------- */
-document.getElementById('copy-table').addEventListener('click', () => {
-  const statusEl = document.getElementById('copy-status');
-  const wrap = document.getElementById('output-wrap');
+function copyBlock(wrapId, statusId){
+  const statusEl = document.getElementById(statusId);
+  const wrap = document.getElementById(wrapId);
   try{
     const range = document.createRange();
     range.selectNodeContents(wrap);
@@ -363,6 +353,166 @@ document.getElementById('copy-table').addEventListener('click', () => {
     statusEl.textContent = 'Não copiou automaticamente — selecione o conteúdo manualmente e use Ctrl+C.';
   }
   setTimeout(() => { statusEl.textContent = ''; }, 4000);
+}
+document.getElementById('copy-table').addEventListener('click', () => copyBlock('output-wrap', 'copy-status'));
+document.getElementById('copy-tech').addEventListener('click', () => copyBlock('tech-wrap', 'copy-tech-status'));
+
+/* ---------------------------------------------------------------------
+   PROPOSTA TÉCNICA — leitura do PDF da cotação do fornecedor
+   Cada item começa em "P/N: <código> – (<descrição>)" e é seguido por
+   "<qtd> <preço unitário> <valor>". O pdf.js só é baixado quando um PDF
+   é escolhido (não pesa na abertura do site).
+--------------------------------------------------------------------- */
+const PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+/* cabeçalhos e rodapés repetidos em cada página, removidos do texto lido */
+const PDF_NOISE = [
+  /Keeping the World Flowing for Future Generations\s*\d+\s*(?:of|de)\s*\d+/gi,
+  /Rotork Quotation\s*-\s*\S+/gi
+];
+
+let techItems = [];
+
+function loadPdfJs(){
+  return new Promise((resolve, reject) => {
+    const pronto = () => { pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; resolve(); };
+    if(typeof pdfjsLib !== 'undefined'){ pronto(); return; }
+    const sc = document.createElement('script');
+    sc.src = PDFJS_URL;
+    sc.onload = pronto;
+    sc.onerror = () => reject(new Error('A biblioteca de leitura de PDF não carregou (verifique a conexão ou se algo bloqueia cdnjs.cloudflare.com).'));
+    document.head.appendChild(sc);
+  });
+}
+
+/* monta o texto da página: fim de linha vira espaço, exceto após hífen
+   (ex.: "XW-00-" + "01580-..." continua sendo um único código) */
+function pageText(items){
+  let t = '';
+  items.forEach(it => { t += it.str; if(it.hasEOL) t += '\n'; });
+  t = t.replace(/-\n(?=\S)/g, '-').replace(/\s*\n\s*/g, ' ');
+  PDF_NOISE.forEach(re => { t = t.replace(re, ' '); });
+  return t.replace(/\s{2,}/g, ' ').trim();
+}
+
+/* "1.00" -> 1 ; "1,5" -> 1.5 ; "1.250,00" -> 1250 */
+function parseQty(str){
+  let v = String(str).trim();
+  if(v.indexOf(',') !== -1 && v.indexOf('.') !== -1){
+    v = v.lastIndexOf(',') > v.lastIndexOf('.') ? v.replace(/\./g, '').replace(',', '.') : v.replace(/,/g, '');
+  } else if(v.indexOf(',') !== -1){
+    v = /,\d{1,2}$/.test(v) ? v.replace(',', '.') : v.replace(/,/g, '');
+  }
+  const n = parseFloat(v);
+  return isFinite(n) ? n : null;
+}
+
+/* separa a descrição em tópicos "Rótulo: valor" (vírgula seguida de um rótulo com dois-pontos) */
+function splitSpecs(desc){
+  if(!desc) return [];
+  return desc
+    .split(/,\s+(?=[A-Z][^,:;()]{0,50}:\s)/)
+    .map(x => x.trim().replace(/[,;]+$/, '').trim())
+    .filter(Boolean);
+}
+
+function parseTechItems(text){
+  const re = /P\/N:\s*/g;
+  const marks = [];
+  let m;
+  while((m = re.exec(text)) !== null) marks.push({start: m.index, after: m.index + m[0].length});
+
+  const out = [];
+  marks.forEach((mk, i) => {
+    const seg = text.slice(mk.after, i + 1 < marks.length ? marks[i + 1].start : text.length);
+    const pnMatch = seg.match(/^(\S+)/);
+    if(!pnMatch) return;
+    const pn = pnMatch[1].replace(/[–—-]+$/, '');
+    const rest = seg.slice(pnMatch[0].length);
+
+    let desc = '';
+    let tail = rest;
+    const open = rest.indexOf('(');
+    if(open !== -1){
+      let depth = 0, end = -1;
+      for(let k = open; k < rest.length; k++){
+        if(rest[k] === '(') depth++;
+        else if(rest[k] === ')'){ depth--; if(depth === 0){ end = k; break; } }
+      }
+      if(end === -1) end = rest.length;
+      desc = rest.slice(open + 1, end).trim();
+      tail = rest.slice(end + 1);
+    }
+
+    const nums = tail.match(/(\d[\d.,]*)\s+(\d[\d.,]*)\s+(\d[\d.,]*)/);
+    if(open === -1){
+      const cut = nums ? rest.indexOf(nums[0]) : rest.length;
+      desc = rest.slice(0, cut).replace(/^\s*[–—-]\s*/, '').trim();
+    }
+
+    out.push({pn: pn, desc: desc, bullets: splitSpecs(desc), qtd: nums ? parseQty(nums[1]) : null});
+  });
+  return out;
+}
+
+function renderTech(){
+  const tbody = document.getElementById('tech-tbody');
+  tbody.innerHTML = techItems.map((it, idx) => {
+    const lis = it.bullets.map(b => '<li>' + escapeHtml(b) + '</li>').join('');
+    const qtd = it.qtd === null ? '—' : it.qtd.toLocaleString('pt-BR', {maximumFractionDigits: 2});
+    return '<tr>' +
+      '<td>' + (idx + 1) + '</td>' +
+      '<td class="left"><strong>' + escapeHtml(it.pn) + '</strong>' + (lis ? '<ul>' + lis + '</ul>' : '') + '</td>' +
+      '<td class="right">' + qtd + '</td>' +
+    '</tr>';
+  }).join('') || '<tr><td colspan="3">Escolha o PDF da cotação para carregar os itens.</td></tr>';
+}
+
+document.getElementById('pdf-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  const statusEl = document.getElementById('pdf-status');
+  const warnEl = document.getElementById('pdf-warnings');
+  if(!file) return;
+  statusEl.className = '';
+  statusEl.textContent = 'Lendo PDF...';
+  warnEl.innerHTML = '';
+
+  try{
+    await loadPdfJs();
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: new Uint8Array(buf)}).promise;
+    const textos = [];
+    for(let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      textos.push(pageText(content.items));
+    }
+    await pdf.destroy();
+
+    const texto = textos.join(' ');
+    techItems = parseTechItems(texto);
+
+    const warnings = [];
+    techItems.forEach((it, idx) => {
+      if(it.qtd === null) warnings.push('Item ' + (idx + 1) + ' (' + it.pn + '): quantidade não encontrada.');
+      if(!it.desc) warnings.push('Item ' + (idx + 1) + ' (' + it.pn + '): descrição não encontrada.');
+    });
+
+    const ref = texto.match(/Nossa\s+refer[eê]ncia:\s*(\S+)/i);
+    if(techItems.length){
+      statusEl.className = 'ok';
+      statusEl.textContent = 'PDF lido: ' + techItems.length + (techItems.length === 1 ? ' item' : ' itens') + (ref ? ' · cotação ' + ref[1] : '') + '.';
+    } else {
+      statusEl.className = 'err';
+      statusEl.textContent = 'Não encontrei itens neste PDF (procurei linhas começando com "P/N:").';
+    }
+    warnEl.innerHTML = warnings.map(w => '<li>' + escapeHtml(w) + '</li>').join('');
+    renderTech();
+  } catch(err){
+    statusEl.className = 'err';
+    statusEl.textContent = 'Erro ao ler o PDF: ' + err.message;
+  }
 });
 
 renderOutput();
+renderTech();

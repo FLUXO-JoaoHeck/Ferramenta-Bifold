@@ -29,7 +29,7 @@
 
   <section id="upload-step">
     <h2><span class="num">1</span> Planilha</h2>
-    <p class="hint">Selecione o arquivo Excel (aba "Revenda"). O site lê os valores já calculados na planilha — preços, impostos de saída e frete rateado — sem recalcular nada.</p>
+    <p class="hint">Selecione o arquivo Excel (aba "Revenda"). O site lê os valores já calculados na planilha — preços e impostos de saída — sem recalcular nada.</p>
     <div class="dropzone">
       <input type="file" id="xlsx-input" accept=".xlsx,.xlsm,.xls">
     </div>
@@ -116,6 +116,36 @@
         <li>Os preços indicados nesta proposta/contrato são líquidos da CBS e do IBS. Os valores correspondentes a esses tributos serão destacados e acrescidos ao preço líquido, de acordo com as alíquotas e demais regras tributárias efetivamente aplicáveis à operação e vigentes na data do respectivo faturamento. Eventuais alterações das alíquotas, bases de cálculo ou demais critérios legais de apuração da CBS e do IBS serão refletidas nos valores dos tributos acrescidos ao preço líquido, sem alteração da margem comercial considerada na formação deste.</li>
         <li>Esta proposta contempla a aquisição da totalidade dos itens ofertados. Quantidades diferentes estão sujeitas a alterações nos termos técnicos/comerciais.</li>
       </ul>
+    </div>
+  </section>
+  <section id="tech-step" class="wide">
+    <h2><span class="num">4</span> Proposta técnica</h2>
+    <p class="hint">Escolha o PDF da cotação do fornecedor. O site lê o PN, a descrição e a quantidade de cada item (linhas "P/N: ...") e monta o Escopo de Fornecimento, pronto para copiar e colar no Word.</p>
+    <div class="dropzone">
+      <input type="file" id="pdf-input" accept="application/pdf">
+    </div>
+    <div id="pdf-status"></div>
+    <ul id="pdf-warnings"></ul>
+
+    <button id="copy-tech" type="button" class="secondary">Copiar proposta técnica</button>
+    <span id="copy-tech-status"></span>
+
+    <div id="tech-wrap">
+      <table id="tech-table">
+        <colgroup>
+          <col style="width:8%">
+          <col style="width:82%">
+          <col style="width:10%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>ITEM</th>
+            <th class="left">DESCRIÇÃO</th>
+            <th class="right">QTD</th>
+          </tr>
+        </thead>
+        <tbody id="tech-tbody"></tbody>
+      </table>
     </div>
   </section>
 </div>
