@@ -37,8 +37,18 @@
     <ul id="upload-warnings"></ul>
   </section>
 
+  <section id="pdf-step">
+    <h2><span class="num">2</span> PDF do fornecedor</h2>
+    <p class="hint">Escolha o PDF da cotação do fornecedor. O site lê o PN, a descrição técnica e a quantidade de cada item (linhas "P/N: ...").</p>
+    <div class="dropzone">
+      <input type="file" id="pdf-input" accept="application/pdf">
+    </div>
+    <div id="pdf-status"></div>
+    <ul id="pdf-warnings"></ul>
+  </section>
+
   <section id="options-step">
-    <h2><span class="num">2</span> Receita Bruta e Petronect</h2>
+    <h2><span class="num">3</span> Receita Bruta e Petronect</h2>
     <p class="hint">Ajustam a tabela e o texto gerados abaixo; não são copiadas.</p>
     <div class="out-options">
       <label>Preço exibido
@@ -61,11 +71,42 @@
         Destino Zona Franca de Manaus (REMAN)
       </label>
     </div>
+
+    <div id="link-box" class="link-box hidden">
+      <h3 class="sub">Vínculo dos itens (planilha × PDF)</h3>
+      <p class="hint">Cada item da planilha recebe o PN e as especificações do item do PDF escolhido ao lado. Por padrão, segue a mesma ordem; ajuste se não bater.</p>
+      <div id="link-rows"></div>
+      <ul id="link-notes"></ul>
+    </div>
   </section>
 
   <section id="output-step" class="wide">
-    <h2><span class="num">3</span> Tabela para copiar</h2>
-    <p class="hint">Reproduz a seção "Preços e Impostos" da proposta: tabela, impostos e observações. Use o botão abaixo (ou selecione e Ctrl+C) e cole direto no Word mantendo a formatação.</p>
+    <h2><span class="num">4</span> Propostas</h2>
+    <p class="hint">Duas tabelas no formato da proposta Fluxo: o Escopo de Fornecimento (técnica) e Preços e Impostos (comercial). Use o botão de cada uma (ou selecione e Ctrl+C) e cole direto no Word mantendo a formatação.</p>
+
+    <h3 class="sub">Proposta técnica — Escopo de Fornecimento</h3>
+    <button id="copy-tech" type="button" class="secondary">Copiar proposta técnica</button>
+    <span id="copy-tech-status"></span>
+
+    <div id="tech-wrap">
+      <table id="tech-table">
+        <colgroup>
+          <col style="width:8%">
+          <col style="width:82%">
+          <col style="width:10%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>ITEM</th>
+            <th class="left">DESCRIÇÃO</th>
+            <th class="right">QTD</th>
+          </tr>
+        </thead>
+        <tbody id="tech-tbody"></tbody>
+      </table>
+    </div>
+
+    <h3 class="sub" style="margin-top:36px;">Proposta comercial — Preços e Impostos</h3>
     <button id="copy-table" type="button" class="secondary">Copiar tabela</button>
     <span id="copy-status"></span>
 
@@ -116,36 +157,6 @@
         <li>Os preços indicados nesta proposta/contrato são líquidos da CBS e do IBS. Os valores correspondentes a esses tributos serão destacados e acrescidos ao preço líquido, de acordo com as alíquotas e demais regras tributárias efetivamente aplicáveis à operação e vigentes na data do respectivo faturamento. Eventuais alterações das alíquotas, bases de cálculo ou demais critérios legais de apuração da CBS e do IBS serão refletidas nos valores dos tributos acrescidos ao preço líquido, sem alteração da margem comercial considerada na formação deste.</li>
         <li>Esta proposta contempla a aquisição da totalidade dos itens ofertados. Quantidades diferentes estão sujeitas a alterações nos termos técnicos/comerciais.</li>
       </ul>
-    </div>
-  </section>
-  <section id="tech-step" class="wide">
-    <h2><span class="num">4</span> Proposta técnica</h2>
-    <p class="hint">Escolha o PDF da cotação do fornecedor. O site lê o PN, a descrição e a quantidade de cada item (linhas "P/N: ...") e monta o Escopo de Fornecimento, pronto para copiar e colar no Word.</p>
-    <div class="dropzone">
-      <input type="file" id="pdf-input" accept="application/pdf">
-    </div>
-    <div id="pdf-status"></div>
-    <ul id="pdf-warnings"></ul>
-
-    <button id="copy-tech" type="button" class="secondary">Copiar proposta técnica</button>
-    <span id="copy-tech-status"></span>
-
-    <div id="tech-wrap">
-      <table id="tech-table">
-        <colgroup>
-          <col style="width:8%">
-          <col style="width:82%">
-          <col style="width:10%">
-        </colgroup>
-        <thead>
-          <tr>
-            <th>ITEM</th>
-            <th class="left">DESCRIÇÃO</th>
-            <th class="right">QTD</th>
-          </tr>
-        </thead>
-        <tbody id="tech-tbody"></tbody>
-      </table>
     </div>
   </section>
 </div>

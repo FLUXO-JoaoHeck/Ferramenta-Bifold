@@ -55,6 +55,7 @@ const COL = {
 };
 
 let items = [];
+let links = [];   // links[i] = índice do item do PDF vinculado ao item i da planilha (-1 = nenhum)
 
 /* células com erro (#REF!, #VALUE!...) são tratadas como vazias */
 function cellAt(ws, addr){
@@ -221,7 +222,7 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
       items = [];
       statusEl.className = 'err';
       statusEl.textContent = 'Não encontrei a aba "' + SHEET_NAME + '" neste arquivo. Abas encontradas: ' + nomes.join(', ') + '.';
-      renderOutput();
+      refreshAll();
       return;
     }
 
@@ -232,7 +233,7 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
       items = [];
       statusEl.className = 'err';
       statusEl.textContent = 'Não encontrei o cabeçalho na aba "' + alvo + '" (procurei "ITEM" na coluna ' + COL.item + ' e "P. TOTAL" na coluna ' + COL.totalDireta + ' nas primeiras ' + MAX_HEADER_SCAN + ' linhas).';
-      renderOutput();
+      refreshAll();
       return;
     }
     items = res.list;
@@ -244,7 +245,7 @@ document.getElementById('xlsx-input').addEventListener('change', async (e) => {
     const resumo = partes.join(' · ');
     statusEl.textContent = items.length ? 'Planilha lida: ' + resumo + (resumo.endsWith('.') ? '' : '.') : 'Nenhum item válido encontrado na planilha.';
     warnEl.innerHTML = res.warnings.map(w => '<li>' + escapeHtml(w) + '</li>').join('');
-    renderOutput();
+    refreshAll();
   } catch(err){
     statusEl.className = 'err';
     statusEl.textContent = 'Erro ao ler a planilha: ' + err.message;
@@ -278,10 +279,13 @@ function renderOutput(){
     const unit = portal ? it.unitPortal : it.unitDireta;
     const tot = portal ? it.totalPortal : it.totalDireta;
     total += tot;
-    const nome = it.desc || ('Item ' + it.code);
+    const pdf = pdfFor(idx);
+    const modelo = pdf
+      ? '<strong>' + escapeHtml(pdf.pn) + '</strong>' + (it.desc ? '<br>' + escapeHtml(it.desc) : '')
+      : '<strong>' + escapeHtml(it.desc || ('Item ' + it.code)) + '</strong>';
     return '<tr>' +
       '<td>' + (idx + 1) + '</td>' +
-      '<td class="left"><strong>' + escapeHtml(nome) + '</strong></td>' +
+      '<td class="left">' + modelo + '</td>' +
       '<td>' + it.qtd + '</td>' +
       '<td>' + escapeHtml(it.ncm || '—') + '</td>' +
       '<td>' + fmtBRL(unit) + '</td>' +
@@ -455,17 +459,100 @@ function parseTechItems(text){
   return out;
 }
 
+function fmtQtd(n){ return n === null || n === undefined ? '—' : n.toLocaleString('pt-BR', {maximumFractionDigits: 2}); }
+
+/* item do PDF vinculado ao item i da planilha (ou null) */
+function pdfFor(i){
+  const j = links[i];
+  return (j !== undefined && j >= 0 && techItems[j]) ? techItems[j] : null;
+}
+
+/* por padrão, o item i da planilha usa o item i do PDF */
+function resetLinks(){
+  links = items.map((_, i) => i < techItems.length ? i : -1);
+}
+
+function renderLinkNotes(){
+  const notes = [];
+  if(items.length !== techItems.length){
+    notes.push('A planilha tem ' + items.length + (items.length === 1 ? ' item' : ' itens') + ' e o PDF tem ' + techItems.length + '. Confira o vínculo.');
+  }
+  const usados = {};
+  items.forEach((it, i) => {
+    const p = pdfFor(i);
+    if(!p){
+      notes.push('Item ' + (i + 1) + ' da planilha sem PN vinculado: aparece só com a descrição.');
+      return;
+    }
+    usados[links[i]] = (usados[links[i]] || []).concat(i + 1);
+    if(p.qtd !== null && Math.abs(p.qtd - it.qtd) > 1e-9){
+      notes.push('Item ' + (i + 1) + ': quantidade ' + fmtQtd(it.qtd) + ' na planilha e ' + fmtQtd(p.qtd) + ' no PDF (as tabelas usam a da planilha).');
+    }
+  });
+  Object.keys(usados).forEach(j => {
+    if(usados[j].length > 1) notes.push('Os itens ' + usados[j].join(' e ') + ' da planilha estão ligados ao mesmo PN (' + techItems[j].pn + ').');
+  });
+  document.getElementById('link-notes').innerHTML = notes.map(n => '<li>' + escapeHtml(n) + '</li>').join('');
+}
+
+function renderLinks(){
+  const box = document.getElementById('link-box');
+  if(!items.length || !techItems.length){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+
+  const opcoes = ['<option value="-1">(sem vínculo)</option>']
+    .concat(techItems.map((t, j) => '<option value="' + j + '">' + escapeHtml(t.pn) + '</option>')).join('');
+  const rows = document.getElementById('link-rows');
+  rows.innerHTML = items.map((it, i) =>
+    '<div class="link-row"><span>Item ' + (i + 1) + ' — ' + escapeHtml(it.desc || ('código ' + it.code)) + '</span>' +
+    '<select data-i="' + i + '">' + opcoes + '</select></div>').join('');
+
+  rows.querySelectorAll('select').forEach(sel => {
+    sel.value = String(links[sel.dataset.i]);
+    sel.addEventListener('change', (e) => {
+      links[parseInt(e.target.dataset.i, 10)] = parseInt(e.target.value, 10);
+      renderLinkNotes();
+      renderOutput();
+      renderTech();
+    });
+  });
+  renderLinkNotes();
+}
+
+function refreshAll(){
+  resetLinks();
+  renderLinks();
+  renderOutput();
+  renderTech();
+}
+
+/* linhas do escopo técnico: com planilha carregada, segue a ordem dela (mesmos itens da tabela de
+   preços); sem planilha, lista os itens do PDF */
+function techRows(){
+  if(items.length){
+    return items.map((it, i) => {
+      const p = pdfFor(i);
+      return {
+        pn: p ? p.pn : (it.desc || ('Item ' + it.code)),
+        nome: p ? it.desc : '',
+        bullets: p ? p.bullets : [],
+        qtd: it.qtd
+      };
+    });
+  }
+  return techItems.map(t => ({pn: t.pn, nome: '', bullets: t.bullets, qtd: t.qtd}));
+}
+
 function renderTech(){
   const tbody = document.getElementById('tech-tbody');
-  tbody.innerHTML = techItems.map((it, idx) => {
-    const lis = it.bullets.map(b => '<li>' + escapeHtml(b) + '</li>').join('');
-    const qtd = it.qtd === null ? '—' : it.qtd.toLocaleString('pt-BR', {maximumFractionDigits: 2});
+  tbody.innerHTML = techRows().map((r, idx) => {
+    const lis = r.bullets.map(b => '<li>' + escapeHtml(b) + '</li>').join('');
     return '<tr>' +
       '<td>' + (idx + 1) + '</td>' +
-      '<td class="left"><strong>' + escapeHtml(it.pn) + '</strong>' + (lis ? '<ul>' + lis + '</ul>' : '') + '</td>' +
-      '<td class="right">' + qtd + '</td>' +
+      '<td class="left"><strong>' + escapeHtml(r.pn) + '</strong>' + (r.nome ? '<br>' + escapeHtml(r.nome) : '') + (lis ? '<ul>' + lis + '</ul>' : '') + '</td>' +
+      '<td class="right">' + fmtQtd(r.qtd) + '</td>' +
     '</tr>';
-  }).join('') || '<tr><td colspan="3">Escolha o PDF da cotação para carregar os itens.</td></tr>';
+  }).join('') || '<tr><td colspan="3">Escolha a planilha e o PDF do fornecedor para montar o escopo.</td></tr>';
 }
 
 document.getElementById('pdf-input').addEventListener('change', async (e) => {
@@ -507,7 +594,7 @@ document.getElementById('pdf-input').addEventListener('change', async (e) => {
       statusEl.textContent = 'Não encontrei itens neste PDF (procurei linhas começando com "P/N:").';
     }
     warnEl.innerHTML = warnings.map(w => '<li>' + escapeHtml(w) + '</li>').join('');
-    renderTech();
+    refreshAll();
   } catch(err){
     statusEl.className = 'err';
     statusEl.textContent = 'Erro ao ler o PDF: ' + err.message;

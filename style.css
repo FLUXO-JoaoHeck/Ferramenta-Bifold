@@ -259,14 +259,48 @@ button.secondary:hover{background:var(--teal-soft);}
 
 /* escopo técnico: ITEM | DESCRIÇÃO | QTD (mesmo estilo da tabela de preços) */
 #tech-wrap{margin-top:16px;}
+#tech-table td .nome{display:block; font-weight:400;}
 #tech-table{min-width:520px;}
+#tech-table thead th{font-weight:400;}
 #tech-table thead th.left{text-align:left;}
-#tech-table thead th.right{text-align:right;}
+#tech-table thead th.right{text-align:right; font-weight:700;}
 #tech-table tbody td{height:auto; padding:6pt 4pt;}
 #tech-table tbody td.left{text-align:left;}
 #tech-table tbody td.right{text-align:right; font-weight:700;}
-#tech-table td ul{margin:4pt 0 2pt; padding-left:16pt; font-size:8pt; line-height:1.4; color:#404040;}
+#tech-table td ul{margin:8pt 0 2pt; padding-left:34pt; font-size:8pt; line-height:1.4; color:#404040;}
 #tech-table td li{margin-bottom:1pt;}
+
+/* subtítulos e vínculo (não são copiados) */
+h3.sub{
+  font-family:var(--serif);
+  font-weight:600;
+  font-size:16px;
+  margin:0 0 6px;
+  color:var(--ink);
+}
+section > h3.sub{margin-top:8px;}
+.link-box{
+  margin-top:14px;
+  background:var(--paper-raised);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:16px 18px;
+  max-width:760px;
+}
+.link-box .hint{color:var(--ink-soft); font-size:13px; margin:0 0 10px;}
+.link-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  align-items:center;
+  padding:6px 0;
+  border-bottom:1px solid var(--line);
+  font-size:13px;
+}
+.link-row:last-of-type{border-bottom:none;}
+.link-row select{width:100%;}
+#link-notes{margin:10px 0 0; padding-left:20px; font-size:12.5px; color:var(--brick);}
+#link-notes:empty{display:none;}
 
 @media (max-width: 560px){
   .out-options{grid-template-columns:1fr;}

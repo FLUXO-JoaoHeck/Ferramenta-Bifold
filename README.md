@@ -5,13 +5,14 @@ planilha de revenda (Ver. 3.0) e gera a seção "Preços e Impostos" da proposta
 pronta para copiar e colar no Word.
 
 ## Como usar
-1. Abra o site e escolha o arquivo Excel (aba "Revenda").
-2. Confira os itens lidos e os avisos exibidos.
-3. Em "Receita Bruta e Petronect", escolha o preço (Revenda direta ou Portal), o estado
-   do cliente, como o IPI aparece e se o destino é Zona Franca de Manaus.
-4. Clique em "Copiar tabela" e cole (Ctrl+V) no Word.
-5. Para o escopo técnico, vá em "Proposta técnica", escolha o PDF da cotação do
-   fornecedor e clique em "Copiar proposta técnica".
+1. **Planilha:** escolha o arquivo Excel (aba "Revenda") e confira os itens lidos e os avisos.
+2. **PDF do fornecedor:** escolha o PDF da cotação; o site lê o PN, a descrição técnica e a quantidade.
+3. **Receita Bruta e Petronect:** escolha o preço (Revenda direta ou Portal), o estado do
+   cliente, como o IPI aparece e se o destino é Zona Franca de Manaus. Com planilha e PDF
+   carregados, aparece também o **vínculo dos itens**: cada item da planilha recebe o PN e as
+   especificações de um item do PDF (por padrão, na mesma ordem; dá para trocar).
+4. **Propostas:** copie o Escopo de Fornecimento (proposta técnica) e/ou Preços e Impostos
+   (proposta comercial) e cole (Ctrl+V) no Word.
 
 ## O que o site lê da planilha
 O site NÃO recalcula preços: lê os valores já calculados pelo Excel
@@ -45,23 +46,23 @@ mostra a lista de abas do arquivo, sem tentar outra aba no lugar.
 - A soma dos itens é conferida com o subtotal da planilha quando todos os itens
   são lidos.
 
-## Proposta técnica (PDF do fornecedor)
-O site lê o PDF da cotação e monta a tabela **Escopo de Fornecimento**
-(ITEM | DESCRIÇÃO | QTD), no formato do modelo Word.
-
-- Cada item é reconhecido pela linha `P/N: <código> – (<descrição>)`; a
-  quantidade é o primeiro número do trio "quantidade, preço unitário, valor" que
-  vem depois da descrição.
-- A descrição é separada em tópicos "Rótulo: valor" (uma vírgula seguida de um
-  rótulo com dois-pontos inicia um novo tópico). Os textos ficam como o
-  fornecedor escreveu, inclusive "N/A".
-- Quebras de linha no meio do código (por exemplo `XW-00-` / `01580-...`) são
-  juntadas; cabeçalho e rodapé repetidos em cada página são descartados (lista
-  `PDF_NOISE`, no início da seção em `script.js`).
-- O pdf.js só é baixado quando um PDF é escolhido.
-- Os preços do PDF não são lidos nem exibidos: a proposta técnica não os usa.
-- Layout testado: cotação da Rotork. Outros fornecedores precisam usar a mesma
-  convenção "P/N:"; senão o site informa que não encontrou itens.
+## PDF do fornecedor e vínculo com a planilha
+- Cada item do PDF é reconhecido pela linha `P/N: <código> – (<descrição>)`; a quantidade é o
+  primeiro número do trio "quantidade, preço unitário, valor" que vem depois da descrição.
+- A descrição é separada em tópicos "Rótulo: valor" (uma vírgula seguida de um rótulo com
+  dois-pontos inicia um novo tópico), mantendo o texto do fornecedor, inclusive "N/A".
+- Quebras de linha no meio do código (`XW-00-` / `01580-...`) são juntadas; cabeçalho e rodapé
+  repetidos em cada página são descartados (lista `PDF_NOISE` em `script.js`).
+- O pdf.js só é baixado quando um PDF é escolhido. Os preços do PDF não são lidos.
+- **Vínculo:** o nome do item vem da planilha (coluna "DESCRIÇÃO") e o PN e as especificações
+  vêm do PDF. O item N da planilha usa o item N do PDF; o vínculo pode ser trocado na seção 3. O
+  site avisa quando as quantidades de itens diferem, quando a quantidade não bate e quando
+  dois itens apontam para o mesmo PN. As tabelas usam a quantidade da planilha.
+- **Proposta técnica:** com planilha carregada, segue a ordem dela (os mesmos itens da tabela de
+  preços); itens sem PN vinculado aparecem só com a descrição. Sem planilha, lista os itens do PDF.
+- **Proposta comercial:** coluna "Modelo" = PN (negrito) + descrição da planilha; sem PDF, só a
+  descrição.
+- Layout testado: cotação da Rotork. Outros fornecedores precisam usar a convenção "P/N:".
 
 ## Publicar no GitHub Pages
 Suba os três arquivos juntos para a raiz do repositório e ative o Pages em
