@@ -7,12 +7,15 @@ pronta para copiar e colar no Word.
 ## Como usar
 1. **Planilha:** escolha o arquivo Excel (aba "Revenda") e confira os itens lidos e os avisos.
 2. **PDF do fornecedor:** escolha o PDF da cotação; o site lê o PN, a descrição técnica e a quantidade.
-3. **Receita Bruta e Petronect:** escolha o preço (Revenda direta ou Portal), o estado do
-   cliente, como o IPI aparece e se o destino é Zona Franca de Manaus. Com planilha e PDF
-   carregados, aparece também o **vínculo dos itens**: cada item da planilha recebe o PN e as
-   especificações de um item do PDF (por padrão, na mesma ordem; dá para trocar).
-4. **Propostas:** copie o Escopo de Fornecimento (proposta técnica) e/ou Preços e Impostos
-   (proposta comercial) e cole (Ctrl+V) no Word.
+3. **Resultado final:** tudo em uma só seção.
+   - **Opções** (não são copiadas): preço exibido (Revenda direta ou Portal), estado do cliente,
+     como o IPI aparece e se o destino é Zona Franca de Manaus.
+   - **Vínculo dos itens**, quando planilha e PDF estão carregados: cada item da planilha recebe o
+     PN e as especificações de um item do PDF (por padrão, na mesma ordem; dá para trocar).
+   - **Tabelas:** Escopo de Fornecimento (proposta técnica) e Preços e Impostos (proposta
+     comercial). Use "Copiar tudo" para as duas de uma vez, ou o botão de cada uma, e cole
+     (Ctrl+V) no Word. No Word do modelo as tabelas ficam em seções diferentes, então copiar cada
+     uma separadamente costuma ser mais prático.
 
 ## O que o site lê da planilha
 O site NÃO recalcula preços: lê os valores já calculados pelo Excel
@@ -55,7 +58,7 @@ mostra a lista de abas do arquivo, sem tentar outra aba no lugar.
   repetidos em cada página são descartados (lista `PDF_NOISE` em `script.js`).
 - O pdf.js só é baixado quando um PDF é escolhido. Os preços do PDF não são lidos.
 - **Vínculo:** o nome do item vem da planilha (coluna "DESCRIÇÃO") e o PN e as especificações
-  vêm do PDF. O item N da planilha usa o item N do PDF; o vínculo pode ser trocado na seção 3. O
+  vêm do PDF. O item N da planilha usa o item N do PDF; o vínculo pode ser trocado na seção 3 (Resultado final). O
   site avisa quando as quantidades de itens diferem, quando a quantidade não bate e quando
   dois itens apontam para o mesmo PN. As tabelas usam a quantidade da planilha.
 - **Proposta técnica:** com planilha carregada, segue a ordem dela (os mesmos itens da tabela de

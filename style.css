@@ -279,6 +279,9 @@ h3.sub{
   color:var(--ink);
 }
 section > h3.sub{margin-top:8px;}
+.sub-note{font-family:var(--sans); font-weight:400; font-size:12.5px; color:var(--ink-soft);}
+.copy-bar{margin:28px 0 8px; display:flex; flex-wrap:wrap; align-items:center; gap:10px 12px;}
+#copy-all-status{font-size:12.5px; color:var(--teal);}
 .link-box{
   margin-top:14px;
   background:var(--paper-raised);

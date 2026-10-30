@@ -359,6 +359,33 @@ function copyBlock(wrapId, statusId){
   setTimeout(() => { statusEl.textContent = ''; }, 4000);
 }
 document.getElementById('copy-table').addEventListener('click', () => copyBlock('output-wrap', 'copy-status'));
+
+/* copia as duas tabelas de uma vez: monta um bloco temporário com cópias das duas, copia e remove */
+document.getElementById('copy-all').addEventListener('click', () => {
+  const statusEl = document.getElementById('copy-all-status');
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed; left:-10000px; top:0; width:800px; background:#fff;';
+  box.appendChild(document.getElementById('tech-wrap').cloneNode(true));
+  const espaco = document.createElement('p');
+  espaco.innerHTML = '&nbsp;';
+  box.appendChild(espaco);
+  box.appendChild(document.getElementById('output-wrap').cloneNode(true));
+  document.body.appendChild(box);
+  try{
+    const range = document.createRange();
+    range.selectNodeContents(box);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const ok = document.execCommand('copy');
+    sel.removeAllRanges();
+    statusEl.textContent = ok ? 'Copiado! Cole com Ctrl+V no Word.' : 'Não copiou automaticamente — use os botões de cada tabela.';
+  } catch(err){
+    statusEl.textContent = 'Não copiou automaticamente — use os botões de cada tabela.';
+  }
+  document.body.removeChild(box);
+  setTimeout(() => { statusEl.textContent = ''; }, 4000);
+});
 document.getElementById('copy-tech').addEventListener('click', () => copyBlock('tech-wrap', 'copy-tech-status'));
 
 /* ---------------------------------------------------------------------

@@ -47,9 +47,11 @@
     <ul id="pdf-warnings"></ul>
   </section>
 
-  <section id="options-step">
-    <h2><span class="num">3</span> Receita Bruta e Petronect</h2>
-    <p class="hint">Ajustam a tabela e o texto gerados abaixo; não são copiadas.</p>
+  <section id="result-step" class="wide">
+    <h2><span class="num">3</span> Resultado final</h2>
+    <p class="hint">Escolha as opções, confira o vínculo e copie as tabelas no formato da proposta Fluxo: o Escopo de Fornecimento (técnica) e Preços e Impostos (comercial). Cole (Ctrl+V) direto no Word mantendo a formatação.</p>
+
+    <h3 class="sub">Opções <span class="sub-note">(não são copiadas)</span></h3>
     <div class="out-options">
       <label>Preço exibido
         <select id="opt-preco">
@@ -78,11 +80,12 @@
       <div id="link-rows"></div>
       <ul id="link-notes"></ul>
     </div>
-  </section>
 
-  <section id="output-step" class="wide">
-    <h2><span class="num">4</span> Propostas</h2>
-    <p class="hint">Duas tabelas no formato da proposta Fluxo: o Escopo de Fornecimento (técnica) e Preços e Impostos (comercial). Use o botão de cada uma (ou selecione e Ctrl+C) e cole direto no Word mantendo a formatação.</p>
+    <div class="copy-bar">
+      <button id="copy-all" type="button">Copiar tudo (técnica + comercial)</button>
+      <span id="copy-all-status"></span>
+      <span class="sub-note">No Word do modelo as duas tabelas ficam em seções diferentes; use os botões de cada tabela para colar cada uma no seu lugar.</span>
+    </div>
 
     <h3 class="sub">Proposta técnica — Escopo de Fornecimento</h3>
     <button id="copy-tech" type="button" class="secondary">Copiar proposta técnica</button>
