@@ -359,34 +359,39 @@ function copyBlock(wrapId, statusId){
   setTimeout(() => { statusEl.textContent = ''; }, 4000);
 }
 document.getElementById('copy-table').addEventListener('click', () => copyBlock('output-wrap', 'copy-status'));
+document.getElementById('copy-tech').addEventListener('click', () => copyBlock('tech-wrap', 'copy-status'));
+document.getElementById('copy-all').addEventListener('click', () => copyBlock('sheet', 'copy-status'));
 
-/* copia as duas tabelas de uma vez: monta um bloco temporário com cópias das duas, copia e remove */
-document.getElementById('copy-all').addEventListener('click', () => {
-  const statusEl = document.getElementById('copy-all-status');
-  const box = document.createElement('div');
-  box.style.cssText = 'position:fixed; left:-10000px; top:0; width:800px; background:#fff;';
-  box.appendChild(document.getElementById('tech-wrap').cloneNode(true));
-  const espaco = document.createElement('p');
-  espaco.innerHTML = '&nbsp;';
-  box.appendChild(espaco);
-  box.appendChild(document.getElementById('output-wrap').cloneNode(true));
-  document.body.appendChild(box);
-  try{
-    const range = document.createRange();
-    range.selectNodeContents(box);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    const ok = document.execCommand('copy');
-    sel.removeAllRanges();
-    statusEl.textContent = ok ? 'Copiado! Cole com Ctrl+V no Word.' : 'Não copiou automaticamente — use os botões de cada tabela.';
-  } catch(err){
-    statusEl.textContent = 'Não copiou automaticamente — use os botões de cada tabela.';
-  }
-  document.body.removeChild(box);
-  setTimeout(() => { statusEl.textContent = ''; }, 4000);
-});
-document.getElementById('copy-tech').addEventListener('click', () => copyBlock('tech-wrap', 'copy-tech-status'));
+/* ---------------------------------------------------------------------
+   FOLHA — margens da página (reservam o espaço do cabeçalho/rodapé do modelo) e impressão
+--------------------------------------------------------------------- */
+const MARGENS_PADRAO = {top: 42, right: 25, bottom: 24, left: 35};
+const CAMPOS_MARGEM = {top: 'pg-top', right: 'pg-right', bottom: 'pg-bottom', left: 'pg-left'};
+
+function aplicarMargens(){
+  const m = {};
+  Object.keys(CAMPOS_MARGEM).forEach(k => {
+    const n = parseFloat(document.getElementById(CAMPOS_MARGEM[k]).value);
+    m[k] = (isFinite(n) && n >= 0) ? n : MARGENS_PADRAO[k];
+  });
+  let st = document.getElementById('page-style');
+  if(!st){ st = document.createElement('style'); st.id = 'page-style'; document.head.appendChild(st); }
+  st.textContent = '@page{size:A4; margin:' + m.top + 'mm ' + m.right + 'mm ' + m.bottom + 'mm ' + m.left + 'mm;}';
+  try{ localStorage.setItem('composicao-preco-margens', JSON.stringify(m)); }catch(e){}
+}
+
+(function initMargens(){
+  let m = Object.assign({}, MARGENS_PADRAO);
+  try{ Object.assign(m, JSON.parse(localStorage.getItem('composicao-preco-margens') || '{}')); }catch(e){}
+  Object.keys(CAMPOS_MARGEM).forEach(k => {
+    const el = document.getElementById(CAMPOS_MARGEM[k]);
+    el.value = m[k];
+    el.addEventListener('input', aplicarMargens);
+  });
+  aplicarMargens();
+})();
+
+document.getElementById('print-sheet').addEventListener('click', () => window.print());
 
 /* ---------------------------------------------------------------------
    PROPOSTA TÉCNICA — leitura do PDF da cotação do fornecedor

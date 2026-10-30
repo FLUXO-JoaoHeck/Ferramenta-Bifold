@@ -281,7 +281,7 @@ h3.sub{
 section > h3.sub{margin-top:8px;}
 .sub-note{font-family:var(--sans); font-weight:400; font-size:12.5px; color:var(--ink-soft);}
 .copy-bar{margin:28px 0 8px; display:flex; flex-wrap:wrap; align-items:center; gap:10px 12px;}
-#copy-all-status{font-size:12.5px; color:var(--teal);}
+
 .link-box{
   margin-top:14px;
   background:var(--paper-raised);
@@ -305,6 +305,55 @@ section > h3.sub{margin-top:8px;}
 #link-notes{margin:10px 0 0; padding-left:20px; font-size:12.5px; color:var(--brick);}
 #link-notes:empty{display:none;}
 
+/* ---------------------------------------------------------------------
+   FOLHA — as duas tabelas em uma página só (técnica em cima da comercial)
+--------------------------------------------------------------------- */
+.sheet-opts{grid-template-columns:repeat(4, 1fr); align-items:start;}
+.sheet-opts input{width:100%;}
+.sheet-opts .sheet-note{grid-column:1 / -1; margin:0; font-size:12.5px; color:var(--ink-soft);}
+.copy-bar button{padding:10px 16px;}
+#sheet{
+  margin-top:16px;
+  background:#FFFFFF;
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:28px 32px;
+  overflow-x:auto;
+  font-family:"Open Sans", Arial, Helvetica, sans-serif;
+  color:#404040;
+}
+#sheet #tech-wrap, #sheet #output-wrap{
+  margin-top:0;
+  padding:0;
+  border:none;
+  border-radius:0;
+  overflow:visible;
+  background:transparent;
+}
+.sheet-title{
+  font-family:"Poppins", "Open Sans", Arial, sans-serif;
+  font-weight:600;
+  font-size:15pt;
+  color:#1E1E1E;
+  margin:0 0 8pt;
+}
+.sheet-title.second{margin-top:26pt;}
+
+/* impressão: só a folha, sem o resto da página; as margens vêm do @page (campos "Folha") */
+@page{size:A4; margin:42mm 25mm 24mm 35mm;}
+@media print{
+  html, body{background:#FFFFFF !important;}
+  .app > header, #upload-step, #pdf-step, #result-step > :not(#sheet), #result-step > h2{display:none !important;}
+  .app{padding:0; max-width:none; margin:0;}
+  #result-step{margin:0; max-width:none;}
+  #sheet{margin:0; padding:0; border:none; border-radius:0; overflow:visible;}
+  #sheet table{min-width:0 !important;}
+  #sheet tr, #sheet li{break-inside:avoid;}
+  .sheet-title{break-after:avoid;}
+  #sheet *{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+}
+
 @media (max-width: 560px){
   .out-options{grid-template-columns:1fr;}
+  .sheet-opts{grid-template-columns:1fr 1fr;}
 }

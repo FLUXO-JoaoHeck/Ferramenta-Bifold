@@ -12,10 +12,22 @@ pronta para copiar e colar no Word.
      como o IPI aparece e se o destino é Zona Franca de Manaus.
    - **Vínculo dos itens**, quando planilha e PDF estão carregados: cada item da planilha recebe o
      PN e as especificações de um item do PDF (por padrão, na mesma ordem; dá para trocar).
-   - **Tabelas:** Escopo de Fornecimento (proposta técnica) e Preços e Impostos (proposta
-     comercial). Use "Copiar tudo" para as duas de uma vez, ou o botão de cada uma, e cole
-     (Ctrl+V) no Word. No Word do modelo as tabelas ficam em seções diferentes, então copiar cada
-     uma separadamente costuma ser mais prático.
+   - **Folha:** uma página só, com o Escopo de Fornecimento (proposta técnica) em cima de Preços e
+     Impostos (proposta comercial). Os campos de margem (topo, rodapé, esquerda, direita, em mm)
+     reservam o espaço do cabeçalho e do rodapé do modelo.
+   - **Imprimir / Salvar PDF:** imprime só a folha. Na janela de impressão, escolha "Salvar como
+     PDF", deixe as margens em "Padrão" e desmarque "Cabeçalhos e rodapés".
+   - **Copiar:** "Copiar folha inteira" (títulos + as duas tabelas) ou só uma das tabelas, para colar
+     (Ctrl+V) no Word.
+
+## Folha e modelo (papel timbrado)
+- As margens padrão (topo 42, rodapé 24, esquerda 35, direita 25 mm) foram estimadas a partir da
+  proposta de exemplo e são lembradas no navegador. Ajuste-as até o conteúdo cair na área livre do
+  modelo.
+- Com poucos itens a folha cabe em uma página; com muitos, continua na seguinte, repetindo as
+  mesmas margens, e as linhas das tabelas não são cortadas ao meio.
+- Próximo passo previsto: usar o arquivo em branco do modelo (cabeçalho e rodapé) como fundo da
+  página impressa.
 
 ## O que o site lê da planilha
 O site NÃO recalcula preços: lê os valores já calculados pelo Excel

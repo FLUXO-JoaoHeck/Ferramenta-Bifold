@@ -8,7 +8,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&family=Open+Sans:wght@400;600;700&family=Poppins:wght@600&display=swap" rel="stylesheet">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="stylesheet" href="style.css">
@@ -49,7 +49,7 @@
 
   <section id="result-step" class="wide">
     <h2><span class="num">3</span> Resultado final</h2>
-    <p class="hint">Escolha as opções, confira o vínculo e copie as tabelas no formato da proposta Fluxo: o Escopo de Fornecimento (técnica) e Preços e Impostos (comercial). Cole (Ctrl+V) direto no Word mantendo a formatação.</p>
+    <p class="hint">Escolha as opções, confira o vínculo e use a folha abaixo: a proposta técnica (Escopo de Fornecimento) em cima da comercial (Preços e Impostos), numa única página.</p>
 
     <h3 class="sub">Opções <span class="sub-note">(não são copiadas)</span></h3>
     <div class="out-options">
@@ -81,16 +81,25 @@
       <ul id="link-notes"></ul>
     </div>
 
-    <div class="copy-bar">
-      <button id="copy-all" type="button">Copiar tudo (técnica + comercial)</button>
-      <span id="copy-all-status"></span>
-      <span class="sub-note">No Word do modelo as duas tabelas ficam em seções diferentes; use os botões de cada tabela para colar cada uma no seu lugar.</span>
+    <h3 class="sub">Folha <span class="sub-note">(margens da página, em mm)</span></h3>
+    <div class="out-options sheet-opts">
+      <label>Topo <input id="pg-top" type="number" min="0" step="1"></label>
+      <label>Rodapé <input id="pg-bottom" type="number" min="0" step="1"></label>
+      <label>Esquerda <input id="pg-left" type="number" min="0" step="1"></label>
+      <label>Direita <input id="pg-right" type="number" min="0" step="1"></label>
+      <p class="sheet-note">Reservam o espaço do cabeçalho e do rodapé do modelo. Na janela de impressão, escolha "Salvar como PDF", deixe as margens em "Padrão" e desmarque "Cabeçalhos e rodapés".</p>
     </div>
 
-    <h3 class="sub">Proposta técnica — Escopo de Fornecimento</h3>
-    <button id="copy-tech" type="button" class="secondary">Copiar proposta técnica</button>
-    <span id="copy-tech-status"></span>
+    <div class="copy-bar">
+      <button id="print-sheet" type="button">Imprimir / Salvar PDF</button>
+      <button id="copy-all" type="button" class="secondary">Copiar folha inteira</button>
+      <button id="copy-tech" type="button" class="secondary">Copiar só a técnica</button>
+      <button id="copy-table" type="button" class="secondary">Copiar só a comercial</button>
+      <span id="copy-status"></span>
+    </div>
 
+    <div id="sheet">
+      <h3 class="sheet-title">Escopo de Fornecimento</h3>
     <div id="tech-wrap">
       <table id="tech-table">
         <colgroup>
@@ -109,10 +118,7 @@
       </table>
     </div>
 
-    <h3 class="sub" style="margin-top:36px;">Proposta comercial — Preços e Impostos</h3>
-    <button id="copy-table" type="button" class="secondary">Copiar tabela</button>
-    <span id="copy-status"></span>
-
+      <h3 class="sheet-title second">Preços e Impostos</h3>
     <div id="output-wrap">
       <table id="output-table">
         <colgroup>
@@ -160,6 +166,7 @@
         <li>Os preços indicados nesta proposta/contrato são líquidos da CBS e do IBS. Os valores correspondentes a esses tributos serão destacados e acrescidos ao preço líquido, de acordo com as alíquotas e demais regras tributárias efetivamente aplicáveis à operação e vigentes na data do respectivo faturamento. Eventuais alterações das alíquotas, bases de cálculo ou demais critérios legais de apuração da CBS e do IBS serão refletidas nos valores dos tributos acrescidos ao preço líquido, sem alteração da margem comercial considerada na formação deste.</li>
         <li>Esta proposta contempla a aquisição da totalidade dos itens ofertados. Quantidades diferentes estão sujeitas a alterações nos termos técnicos/comerciais.</li>
       </ul>
+    </div>
     </div>
   </section>
 </div>
